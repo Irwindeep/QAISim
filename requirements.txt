@@ -1,3 +1,4 @@
 simpy
 mypy
 pytest
+qiskit

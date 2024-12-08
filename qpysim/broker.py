@@ -1,6 +1,5 @@
 from typing import List, Generator, Union
 import simpy
-from qpysim.utils import TaskStatus
 from qpysim.qtask import QTask
 from qpysim.qnode import QNode, QNodeParams
 
