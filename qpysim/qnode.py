@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import List, Generator, NamedTuple
 from qpysim.utils import TaskStatus
 from qpysim.qtask import QTask
 import simpy
@@ -25,7 +25,14 @@ class QNode:
         self.capacity = simpy.Resource(self.env, capacity)
         self.qtasks = qtasks
 
-    def process_qtask(self, qtask: QTask) -> Any:
+        self.total_completed_qtasks = 0
+        self.total_running_time = 0.0
+
+    def add_qtask(self, qtask: QTask) -> None:
+        self.qtasks.append(qtask)
+        qtask.status == TaskStatus.QUEUED
+
+    def process_qtask(self, qtask: QTask) -> Generator:
         qtask.status = TaskStatus.RUNNING
         qtask.waiting_time = self.env.now - qtask.arrival_time
 
@@ -38,6 +45,15 @@ class QNode:
         qtask.exec_end_time = self.env.now
         
         self.qtasks.remove(qtask)
+        self.total_completed_qtasks += 1
+        self.total_running_time += exec_time
 
     def __repr__(self) -> str:
         return f"QNode(id={self.id}, capacity={self.capacity.capacity})"
+
+class QNodeParams(NamedTuple):
+    id: int
+    num_qubits: int
+    eplg: float
+    clops: int
+    q_vol: int

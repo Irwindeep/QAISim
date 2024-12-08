@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Generator, List
 import unittest
 import simpy
 from qpysim.qtask import QTask
@@ -19,7 +19,7 @@ qtasks: List[QTask] = [
     )
 ]
 
-def exec_qtask(env: simpy.Environment, qnode: QNode, qtask: QTask) -> Any:
+def exec_qtask(env: simpy.Environment, qnode: QNode, qtask: QTask) -> Generator:
     yield env.timeout(qtask.arrival_time - env.now)
     with qnode.capacity.request() as request:
         yield request
