@@ -44,3 +44,18 @@ class TestQRLEnv(unittest.TestCase):
         assert len(new_state) == 7
         assert terminated == False
         assert isinstance(reward, float)
+
+    def test_termination(self):
+        data_file = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "../../../data/qtasks_test.csv"
+        )
+
+        dataset = Dataset(data_file)
+        qrl_env = QRLEnv(dataset)
+
+        state, _ = qrl_env.reset()
+        for i in range(30):
+            new_state, reward, terminated, _, _ = qrl_env.step(i%11)
+
+        assert terminated == True
