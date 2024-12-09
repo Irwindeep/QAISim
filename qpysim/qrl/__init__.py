@@ -1,7 +1,7 @@
 from qpysim.qrl.qrl_env import QRLEnv
-from qpysim.qrl.env_qnodes import ibm_qnodes
+from qpysim.qrl.parametrized_qc import ParametrizedQC
 
 __all__ = [
-    "ibm_qnodes",
+    "ParametrizedQC",
     "QRLEnv"
 ]

@@ -137,9 +137,9 @@ class QRLEnv(gym.Env):
             "qnode_eplg": np.array([qnode.eplg for qnode in self.qnodes]),
             "qnode_clops": np.array([qnode.clops for qnode in self.qnodes]),
             "qtask_arrival_time": np.array([self.current_qtask.arrival_time]),
-            "qtask_num_qubits": spaces.Box(low=0, high=156, shape=(1,)),
-            "qtask_circuit_layers": spaces.Box(low=0, high=MAX_CIRCUIT_LAYERS, shape=(1,)),
-            "qtask_gate_counts": spaces.Box(low=0, high=MAX_GATE_COUNTS, shape=(1,))
+            "qtask_num_qubits": np.array([self.current_qtask.num_qubits]),
+            "qtask_circuit_layers": np.array([self.current_qtask.circuit_layers]),
+            "qtask_gate_counts": np.array([self.current_qtask.gate_counts])
         }
 
         return obs
