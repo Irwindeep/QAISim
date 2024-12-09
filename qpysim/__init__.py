@@ -4,6 +4,7 @@ from qpysim.qnode import (
     QNodeParams
 )
 from qpysim.qtask import QTask
+from . import qrl
 
 __all__ = [
     "Broker",

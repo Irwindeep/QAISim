@@ -1,4 +1,3 @@
-from typing import NamedTuple
 from qpysim.utils import TaskStatus
 
 class QTask:
@@ -8,7 +7,7 @@ class QTask:
         num_qubits: int,
         circuit_layers: int,
         gate_counts: int,
-        arrival_time: float,
+        arrival_time: float = -1,
         shots: int = 1024,
         qasm_file: str = ""
     ) -> None:
@@ -27,6 +26,8 @@ class QTask:
         self.exec_start_time = -1.0
         self.exec_end_time = -1.0
 
+        self.num_rescheduled = 0
+
     @property
     def status(self) -> TaskStatus:
         return self._status
@@ -37,8 +38,3 @@ class QTask:
 
     def __repr__(self) -> str:
         return f"QTask(id={self.id}, status={self.status})"
-
-class QTaskParams(NamedTuple):
-    num_qubits: int
-    circuit_layers: int
-    gate_counts: int
