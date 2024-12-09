@@ -10,7 +10,9 @@ class ParametrizedQC:
         self.qubits = cirq.GridQubit.rect(1, self.num_qubits)
         self.quantum_circuit = cirq.Circuit()
 
-    def create_circuit(self) -> None:
+        self._create_circuit()
+
+    def _create_circuit(self) -> None:
         self.phi = sympy.symbols(f"phi[(0:{2*(self.num_layers + 1) * self.num_qubits})]")
         self.inputs = sympy.symbols(f"x[(0:{self.num_layers})][0:{2*self.num_qubits}]")
 

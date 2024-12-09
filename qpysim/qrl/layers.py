@@ -22,7 +22,7 @@ class ReUploading(tf.keras.layers.Layer):
         phi_init = phi_init(shape=(1, len(parametrized_qc.phi)))
         self.phi = tf.Variable(initial_value=phi_init, trainable=True, name="phi")
 
-        lmbd_init = tf.ones(shape=len(parametrized_qc.inputs))
+        lmbd_init = tf.ones(shape=(len(parametrized_qc.inputs), ))
         self.lmbd = tf.Variable(initial_value=lmbd_init, trainable=True, name="lambda")
 
         symbols = [str(symb) for symb in parametrized_qc.phi + parametrized_qc.inputs]
@@ -33,11 +33,8 @@ class ReUploading(tf.keras.layers.Layer):
         self.computation_layer = tfq.layers.ControlledPQC(
             parametrized_qc.quantum_circuit, observables
         )
-
-    def __repr__(self) -> str:
-        return f"ReUploading(num_qubits={self.num_qubits}, num_layers={self.num_layers})"
     
-    def __call__(self, inputs: List[tf.Tensor]) -> tf.Tensor:
+    def call(self, inputs: List[tf.Tensor]) -> tf.Tensor:
         batch_dim = tf.gather(tf.shape(inputs[0]), 0)
 
         tiled_up_circuits = tf.repeat(self.empty_circuit, repeats=batch_dim)
@@ -57,13 +54,10 @@ class Alternating(tf.keras.layers.Layer):
         super(Alternating, self).__init__()
 
         self.output_dim = output_dim
-        self.weights = tf.Variable(
+        self.w = tf.Variable(
             initial_value=tf.constant([[(-1.)**i for i in range(output_dim)]]),
             trainable=True, name="observable-weights"
         )
 
-    def __repr__(self) -> str:
-        return f"Aternating(output_dim={self.output_dim})"
-    
-    def __call__(self, inputs: tf.Tensor) -> tf.Tensor:
-        return tf.matmul(inputs, self.weights)
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        return tf.matmul(inputs, self.w)

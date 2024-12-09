@@ -4,10 +4,12 @@ from qpysim.qrl.layers import (
     ReUploading,
     Alternating
 )
+from qpysim.qrl.policy_gradient import PolicyGradient
 
 __all__ = [
     "Alternating",
     "ParametrizedQC",
+    "PolicyGradient",
     "QRLEnv",
     "ReUploading"
 ]
