@@ -7,12 +7,15 @@ class Broker:
     def __init__(
         self,
         qnode_params: List[QNodeParams],
-        qtasks: List[QTask]
+        qtasks: List[QTask] = []
     ) -> None:
         self.env = simpy.Environment()
 
         self.qnodes = [QNode(self.env, *params) for params in qnode_params]
         self.qtasks = qtasks
+
+    def add_qtasks(self, new_qtasks: List[QTask]) -> None:
+        self.qtasks += new_qtasks
 
     def assign_qtasks(self) -> None:
         for qtask in self.qtasks:

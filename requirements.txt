@@ -2,3 +2,5 @@ simpy
 mypy
 pytest
 qiskit
+numpy
+pandas

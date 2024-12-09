@@ -48,6 +48,11 @@ def qtasks_analysis(zip_file_path: str) -> None:
         alg_counts = {}
         with zipfile.ZipFile(zip_file_path, 'r') as zip_file:
             for file_name in zip_file.namelist():
+                # skipping qwalk with a lot of layers
+                if "qwalk" in file_name: continue
+
+                # skipping circuits with more than 50 qubits
+                if int(file_name.split('_')[-1][:-5]) > 50: continue
                 alg_name = re.search(pattern, file_name).group(1)
 
                 if alg_name not in alg_counts: alg_counts[alg_name] = 0
@@ -73,6 +78,9 @@ def zipped_qasm_to_csv(zip_file_path: str, backends: List[Dict[str, Any]], csv_f
                 # skipping qwalk with a lot of layers
                 if "qwalk" in file_name: continue
 
+                # skipping circuits with more than 50 qubits
+                if int(file_name.split('_')[-1][:-5]) > 50: continue
+
                 algorithm = re.search(pattern, file_name).group(1)
                 with zip_file.open(file_name) as qasm_file:
                     qasm_str = qasm_file.read().decode()
@@ -92,5 +100,5 @@ if __name__=="__main__":
 
     qtasks_analysis(zip_file_path)
 
-    # Executing this will take some time
+    # Executing this will take some time (actually a lot, kindly use the csv only)
     zipped_qasm_to_csv(zip_file_path, backends)
