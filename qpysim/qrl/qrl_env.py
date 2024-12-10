@@ -72,7 +72,7 @@ class QRLEnv(gym.Env):
         exec_time = target_specific_qtask.exec_end_time - target_specific_qtask.exec_start_time
 
         self.current_time += waiting_time + exec_time
-        return 1/(waiting_time + exec_time)
+        return 1/(waiting_time + exec_time) - 10*qnode.eplg
     
     def step(self, action: int) -> Tuple[Dict[str, Any], float, bool, bool, Dict[str, Any]]:
         if self.current_qtask is None or self.current_target_specific_qtask is None:
@@ -140,6 +140,7 @@ class QRLEnv(gym.Env):
             "qnode_num_qubits": np.array([qnode.num_qubits for qnode in self.qnodes]),
             "qnode_eplg": np.array([qnode.eplg for qnode in self.qnodes]),
             "qnode_clops": np.array([qnode.clops for qnode in self.qnodes]),
+            "qnode_queued_tasks": np.array([len(qnode.qtasks) for qnode in self.qnodes]),
             "qtask_arrival_time": np.array([self.current_qtask.arrival_time]),
             "qtask_num_qubits": np.array([self.current_qtask.num_qubits]),
             "qtask_circuit_layers": np.array([self.current_qtask.circuit_layers]),
