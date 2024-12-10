@@ -5,12 +5,14 @@ from qpysim.qrl.layers import (
     Alternating,
     Rescaling
 )
+from qpysim.qrl.module import Module
 from qpysim.qrl.policy_gradient import PolicyGradient
 from qpysim.qrl.dq_learning import DeepQLearning
 
 __all__ = [
     "Alternating",
     "DeepQLearning",
+    "Module",
     "ParametrizedQC",
     "PolicyGradient",
     "QRLEnv",

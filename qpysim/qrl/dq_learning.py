@@ -1,48 +1,39 @@
-from typing import Tuple, List, Callable, Dict, Deque
-from qpysim.qrl.parametrized_qc import ParametrizedQC
+from typing import Tuple, Deque, Dict
+from qpysim.qrl.module import (
+    Module,
+    EpisodeCallable
+)
 from qpysim.qrl.layers import (
     ReUploading,
     Rescaling
 )
-import cirq
+import cirq, gym, random
 from functools import reduce
 import numpy as np
 from numpy.typing import NDArray
 import tensorflow as tf # type: ignore[import-untyped]
 from collections import deque
 from tqdm import tqdm
-import random
 
-class DeepQLearning:
+ReplayMem = Deque[Dict[str, NDArray[np.float32]]]
+
+class DeepQLearning(Module):
     def __init__(
-        self,
-        parametrized_qc: ParametrizedQC,
-        num_actions: int,
-        epsilon: float = 1.0,
-        epsilon_min: float = 0.01,
-        decay_epsilon: float = 0.99,
-        gamma: float = 0.99,
-        lrs: Tuple[float, float, float] = (0.001, 0.001, 0.1),
+        self, parametrized_qc, num_actions, gamma = 0.99,
+        lrs = (0.001, 0.001, 0.1), epsilon: float = 1.0,
+        epsilon_min: float = 0.01, decay_epsilon: float = 0.99,
         step_updates: Tuple[int, int] = (10, 30)
-    ) -> None:
-        self.parametrized_qc = parametrized_qc
-        self.quantum_circuit = parametrized_qc.quantum_circuit
-        self.qubits = parametrized_qc.qubits
-        self.num_qubits = parametrized_qc.num_qubits
-        self.num_layers = parametrized_qc.num_layers
-
-        self.num_actions = num_actions
+    ):
+        super().__init__(parametrized_qc, num_actions, gamma, lrs)
 
         self.epsilon = epsilon
         self.epsilon_min = epsilon_min
         self.decay_epsilon = decay_epsilon
-        self.gamma = gamma
 
         self.max_memory_length = 10000
-        self.replay_memory: Deque[Dict[str, NDArray]] = deque(maxlen=self.max_memory_length)
+        self.replay_memory: ReplayMem = deque(maxlen=self.max_memory_length)
 
         self.step_updates = step_updates
-
         operations = [cirq.Z(qubit) for qubit in self.qubits]
         self.observables = [
             reduce(lambda x, y: x*y, operations[i: i+2])
@@ -53,14 +44,6 @@ class DeepQLearning:
         self.model_target = self._create_model_policy(target=True)
         self.model_target.set_weights(self.model.get_weights())
 
-        self.w_in, self.w_var, self.w_out = 1, 0, 2
-
-        self.optimizer_in = tf.keras.optimizers.Adam(learning_rate=lrs[self.w_in], amsgrad=True)
-        self.optimizer_var = tf.keras.optimizers.Adam(learning_rate=lrs[self.w_var], amsgrad=True)
-        self.optimizer_out = tf.keras.optimizers.Adam(learning_rate=lrs[self.w_out], amsgrad=True)
-
-        self.episode_reward_history: List[float] = []
-
     @tf.function
     def q_learning_update(
         self,
@@ -69,6 +52,9 @@ class DeepQLearning:
         rewards: NDArray[np.float32],
         next_states: NDArray[np.float32], done: NDArray[np.float32]
     ) -> None:
+        if self.model is None:
+            raise RuntimeError("Model not defined")
+        
         states = tf.convert_to_tensor(states)
         actions = tf.convert_to_tensor(actions)
         rewards = tf.convert_to_tensor(rewards)
@@ -76,16 +62,14 @@ class DeepQLearning:
         done = tf.convert_to_tensor(done)
 
         future_rewards = self.model_target([next_states])
-        target_q_values = rewards + (self.gamma * tf.reduce_max(future_rewards, axis=1) * (1.0 - done))
-
+        target_q_values = rewards + (self.gamma * 
+                                     tf.reduce_max(future_rewards, axis=1) * (1.0 - done))
         masks = tf.one_hot(actions, self.num_actions)
 
         with tf.GradientTape() as tape:
             tape.watch(self.model.trainable_variables)
-
             q_values = self.model([states])
             q_values_masked = tf.reduce_sum(tf.multiply(q_values, masks), axis=1)
-
             loss = tf.keras.losses.Huber()(target_q_values, q_values_masked)
 
         grads = tape.gradient(loss, self.model.trainable_variables)
@@ -95,53 +79,66 @@ class DeepQLearning:
         ):
             optimizer.apply_gradients([(grads[w], self.model.trainable_variables[w])])
 
-    def reinforce(
+    def train(
         self,
-        generate_episode: Callable[[tf.keras.Model, int, float], List[Dict]],
+        env: gym.Env,
+        generate_episode: EpisodeCallable,
         num_episodes: int, batch_size: int = 16,
         threshold_reward: float = 500.0
     ) -> None:
+        if self.model is None:
+            raise RuntimeError("Model not defined")
+
         self.episode_reward_history, step_count = [], 0
         with tqdm(total=num_episodes, colour="cyan") as pbar:
             for episode_count in range(num_episodes):
                 pbar.set_description(f"Episode [{episode_count + 1}/{num_episodes}]")
-
                 episode_reward = 0.0
+                state = env.reset()
+                state = np.array(state)
 
-                episode = generate_episode(self.model, self.num_actions, self.epsilon)
-                for interaction in episode:
+                while True:
+                    interaction = generate_episode(self.model, self.num_actions, self.epsilon, state)[0]
                     self.replay_memory.append(interaction)
-                    episode_reward += interaction["reward"]
+
+                    state = interaction['next_state']
+                    episode_reward += interaction['reward']
                     step_count += 1
-                    
+
                     if step_count % self.step_updates[0] == 0:
                         if batch_size > len(self.replay_memory):
                             training_batch = list(self.replay_memory)
                         else:
-                            training_batch = random.sample(list(self.replay_memory), k=batch_size)
+                            training_batch = random.sample(
+                                self.replay_memory,
+                                k=batch_size
+                            )
                         self.q_learning_update(
                             np.asarray([x['state'] for x in training_batch], dtype=np.float32),
                             np.asarray([x['action'] for x in training_batch], dtype=np.int32),
                             np.asarray([x['reward'] for x in training_batch], dtype=np.float32),
                             np.asarray([x['next_state'] for x in training_batch], dtype=np.float32),
-                            np.asarray([x['done'] for x in training_batch], dtype=np.float32),
+                            np.asarray([x['done'] for x in training_batch], dtype=np.float32)
                         )
 
                     if step_count % self.step_updates[1] == 0:
                         self.model_target.set_weights(self.model.get_weights())
 
+                    if interaction['done']: break
+
                 self.epsilon = max(self.epsilon * self.decay_epsilon, self.epsilon_min)
-
                 self.episode_reward_history.append(episode_reward)
-
                 average_rewards = np.mean(self.episode_reward_history[-batch_size:])
+
                 pbar.set_postfix({'Avg Reward': f"{average_rewards:.2f}"})
                 pbar.update(1)
 
-                if average_rewards >= threshold_reward:
-                    break
+                if average_rewards >= threshold_reward: break
 
     def _create_model_policy(self, target: bool) -> tf.keras.Model:
+        if self.observables is None:
+            raise RuntimeError("Observables not defined")
+
         input_tensor = tf.keras.Input(shape=(self.num_qubits, ), dtype=tf.dtypes.float32, name="input")
         re_uploading = ReUploading(self.parametrized_qc, self.observables, activation="tanh")
         re_uploading_output = re_uploading([input_tensor])
