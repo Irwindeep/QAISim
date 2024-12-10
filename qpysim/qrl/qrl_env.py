@@ -29,15 +29,12 @@ class QRLEnv(gym.Env):
     ) -> None:
         super(QRLEnv, self).__init__()
 
-        self.sim_env = simpy.Environment()
-
         self.qtasks_dataset = qtasks_dataset
         self.num_qnodes = num_qnodes
         self.num_qtasks = num_qtasks
         self.qnode_capacity = qnode_capacity
 
         self.broker = Broker(qnode_params=[param for _, param in ibm_qnodes.items()])
-        self.broker.env = self.sim_env
 
         self.qtasks = self.broker.qtasks
         self.target_specific_qtasks: List[Dict[int, QTask]] = []
@@ -58,21 +55,24 @@ class QRLEnv(gym.Env):
         self.current_target_specific_qtask: Optional[Dict[int, QTask]] = None
         self.current_time = 0.0
 
-    def assign_qtask_to_qnode(self, qtask: QTask, qnode: QNode, target_specific_qtask: QTask) -> float:
+    def assign_qtask_to_qnode(self, qtask: QTask, qnode: QNode, action: int, target_specific_qtask: QTask) -> float:
         # A condition never attainable at our dataset but for scalability
         if qtask.num_qubits > qnode.num_qubits:
             qtask.num_rescheduled += 1
             return -10.0
         
         qnode.add_qtask(target_specific_qtask)
-        qtask_execution = self.broker.task_executor(qnode, target_specific_qtask)
-        self.sim_env.process(qtask_execution)
+        qtask_execution = self.broker.task_executor(
+            self.broker.envs[action], qnode, target_specific_qtask
+        )
+        self.broker.envs[action].process(qtask_execution)
+        self.broker.envs[action].run()
 
-        waiting_time = target_specific_qtask.exec_end_time - target_specific_qtask.arrival_time
+        waiting_time = target_specific_qtask.exec_start_time - target_specific_qtask.arrival_time
         exec_time = target_specific_qtask.exec_end_time - target_specific_qtask.exec_start_time
 
         self.current_time += waiting_time + exec_time
-        return (1/waiting_time + exec_time) - qnode.eplg
+        return 1/(waiting_time + exec_time)
     
     def step(self, action: int) -> Tuple[Dict[str, Any], float, bool, bool, Dict[str, Any]]:
         if self.current_qtask is None or self.current_target_specific_qtask is None:
@@ -80,8 +80,8 @@ class QRLEnv(gym.Env):
         
         target_specific_qtask = self.current_target_specific_qtask[self.qnodes[action].num_qubits]
     
-        reward = self.assign_qtask_to_qnode(self.current_qtask, self.qnodes[action], target_specific_qtask)
-        scheduled_qtask = self.current_qtask
+        reward = self.assign_qtask_to_qnode(self.current_qtask, self.qnodes[action], action, target_specific_qtask)
+        scheduled_qtask = target_specific_qtask
 
         if len(self.qtasks) > 0:
             self.current_qtask = self.qtasks.pop(0)
@@ -105,11 +105,15 @@ class QRLEnv(gym.Env):
         qtask_ids = list(range(self.num_qtasks))
         arrival_times = np.sort(np.random.uniform(self.current_time, self.current_time+60, size=self.num_qtasks))
 
+        assert arrival_times.tolist() == sorted(arrival_times.tolist())
+
         qtasks_dict = self.qtasks_dataset.random_qtasks(self.num_qtasks).values()
         self.qtasks = [
             QTask(i+1, *list(qtasks_dict)[i]["original"])
             for i in qtask_ids
         ]
+
+        assert all([task.circuit_layers > 0 for task in self.qtasks])
 
         self.target_specific_qtasks = [
             {

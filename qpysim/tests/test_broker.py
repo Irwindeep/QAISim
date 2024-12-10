@@ -1,11 +1,9 @@
-from typing import List
+from typing import List, Tuple
 import unittest
 import simpy
 from qpysim.qtask import QTask
 from qpysim.qnode import QNode, QNodeParams
 from qpysim.broker import Broker
-
-env = simpy.Environment()
 
 qtasks: List[QTask] = [
     QTask(
@@ -39,12 +37,13 @@ qnodes: List[QNodeParams] = [
 class TestBroker(unittest.TestCase):
     def test_broker(self):
         class SimpleBroker(Broker):
-            def __init__(self, qnodes: List[QNodeParams], qtasks: List[QTask]):
+            def __init__(self,
+                         qnodes: List[QNodeParams], qtasks: List[QTask]):
                 super().__init__(qnodes, qtasks)
 
-            def assign(self, qtask: QTask) -> QNode:
-                return self.qnodes[qtask.id - 1]
-            
+            def assign(self, qtask: QTask) -> Tuple[int, QNode]:
+                return qtask.id - 1, self.qnodes[qtask.id - 1]
+        
         broker = SimpleBroker(qnodes, qtasks)
         broker.run()
 

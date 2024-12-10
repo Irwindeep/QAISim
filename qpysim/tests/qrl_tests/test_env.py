@@ -38,12 +38,16 @@ class TestQRLEnv(unittest.TestCase):
         qrl_env = QRLEnv(dataset)
 
         state, _ = qrl_env.reset()
-        new_state, reward, terminated, _, _ = qrl_env.step(0)
+        new_state, reward, terminated, _, qtask = qrl_env.step(0)
 
         assert len(state) == 7
         assert len(new_state) == 7
         assert terminated == False
         assert isinstance(reward, float)
+
+        assert qtask["scheduled_qtask"].num_rescheduled == 0
+        assert qtask["scheduled_qtask"].exec_start_time > -1
+        assert qtask["scheduled_qtask"].exec_end_time > qtask["scheduled_qtask"].exec_start_time
 
     def test_termination(self):
         data_file = os.path.join(
@@ -59,3 +63,4 @@ class TestQRLEnv(unittest.TestCase):
             new_state, reward, terminated, _, _ = qrl_env.step(i%11)
 
         assert terminated == True
+        assert reward > 0
