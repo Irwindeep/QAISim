@@ -4,7 +4,6 @@ from qpysim.qrl.parametrized_qc import ParametrizedQC
 class TestPQC(unittest.TestCase):
     def test_pqc_circuit(self):
         pqc = ParametrizedQC(num_qubits=4, num_layers=2)
-        pqc.create_circuit()
 
         assert len(pqc.phi) == 24
         assert len(pqc.inputs) == 16

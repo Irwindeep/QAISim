@@ -8,7 +8,6 @@ class TestLayers(unittest.TestCase):
     def test_reuploading_layer(self):
         num_qubits, num_layers = 4, 2
         parametrized_qc = ParametrizedQC(num_qubits=num_qubits, num_layers=num_layers)
-        parametrized_qc.create_circuit()
 
         ops = [cirq.Z(q) for q in parametrized_qc.qubits]
         observables = [reduce(lambda x,y: x*y, ops)]

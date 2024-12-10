@@ -1,4 +1,4 @@
-from typing import List, Tuple, Callable
+from typing import List, Tuple, Callable, Dict
 from qpysim.qrl.parametrized_qc import ParametrizedQC
 from qpysim.qrl.layers import (
     ReUploading,
@@ -16,7 +16,7 @@ class PolicyGradient:
         self,
         parametrized_qc: ParametrizedQC,
         num_actions: int,
-        beta: float = 10.0,
+        beta: float = 1.0,
         gamma: float = 0.99,
         lrs: Tuple[float, float, float] = (0.01, 0.1, 0.1)
     ) -> None:
@@ -35,11 +35,11 @@ class PolicyGradient:
 
         self.model = self._create_model_policy()
 
-        self.optimizer_in = tf.keras.optimizers.Adam(learning_rate=lrs[0], amsgrad=True)
-        self.optimizer_var = tf.keras.optimizers.Adam(learning_rate=lrs[1], amsgrad=True)
-        self.optimizer_out = tf.keras.optimizers.Adam(learning_rate=lrs[2], amsgrad=True)
-
         self.w_in, self.w_var, self.w_out = 1, 0, 2
+
+        self.optimizer_in = tf.keras.optimizers.Adam(learning_rate=lrs[self.w_in], amsgrad=True)
+        self.optimizer_var = tf.keras.optimizers.Adam(learning_rate=lrs[self.w_var], amsgrad=True)
+        self.optimizer_out = tf.keras.optimizers.Adam(learning_rate=lrs[self.w_out], amsgrad=True)
 
         self.episode_reward_history: List[float] = []
 
@@ -58,9 +58,9 @@ class PolicyGradient:
     @tf.function
     def reinforcement_update(
         self,
-        states: NDArray[np.float64],
-        actions: NDArray[np.int64],
-        returns: NDArray[np.int64],
+        states: NDArray[np.float32],
+        actions: NDArray[np.int32],
+        returns: NDArray[np.float32],
         batch_size: int
     ) -> None:
         states = tf.convert_to_tensor(states)
@@ -85,7 +85,7 @@ class PolicyGradient:
 
     def reinforce(
         self,
-        generate_episodes: Callable[[tf.keras.Model, int, int], dict],
+        generate_episodes: Callable[[tf.keras.Model, int, int], Dict],
         num_episodes: int, batch_size: int = 10,
         threshold_reward: float = 500.0
     ) -> None:
@@ -96,14 +96,15 @@ class PolicyGradient:
 
                 episodes = generate_episodes(self.model, self.num_actions, batch_size)
 
-                states = np.concatenate([ep['states'] for ep in episodes])
-                actions = np.concatenate([ep['actions'] for ep in episodes])
+                states = np.concatenate([ep['states'] for ep in episodes], dtype=np.float32)
+                actions = np.concatenate([ep['actions'] for ep in episodes], dtype=np.int32)
                 rewards = [ep['rewards'] for ep in episodes]
                 returns = np.concatenate(
-                    [self.compute_returns(episode_rewards) for episode_rewards in rewards]
+                    [self.compute_returns(episode_rewards) for episode_rewards in rewards],
+                    dtype=np.float32
                 )
 
-                id_action_pairs = np.array([[i, a] for i, a in enumerate(actions)])
+                id_action_pairs = np.array([[i, a] for i, a in enumerate(actions)], dtype=np.int32)
 
                 for episode_rewards in rewards:
                     self.episode_reward_history.append(np.sum(episode_rewards))
@@ -111,7 +112,7 @@ class PolicyGradient:
                 average_rewards = np.mean(self.episode_reward_history[-batch_size:])
 
                 pbar.set_postfix({'Avg Reward': f"{average_rewards:.2f}"})
-                pbar.update(1)  # Increment the progress bar by 1 batch
+                pbar.update(1)
 
                 if average_rewards >= threshold_reward:
                     break
@@ -119,7 +120,7 @@ class PolicyGradient:
                 self.reinforcement_update(states, id_action_pairs, returns, batch_size)
 
     def _create_model_policy(self) -> tf.keras.Model:
-        input_tensor = tf.keras.Input(shape=(self.num_qubits, ), name="input")
+        input_tensor = tf.keras.Input(shape=(self.num_qubits, ), dtype=tf.dtypes.float32, name="input")
         re_uploading = ReUploading(self.parametrized_qc, self.observables)
         re_uploading_output = re_uploading([input_tensor])
 

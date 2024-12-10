@@ -72,7 +72,7 @@ class QRLEnv(gym.Env):
         exec_time = target_specific_qtask.exec_end_time - target_specific_qtask.exec_start_time
 
         self.current_time += waiting_time + exec_time
-        return (1/waiting_time + exec_time) + (1/qnode.eplg)
+        return (1/waiting_time + exec_time) - qnode.eplg
     
     def step(self, action: int) -> Tuple[Dict[str, Any], float, bool, bool, Dict[str, Any]]:
         if self.current_qtask is None or self.current_target_specific_qtask is None:
@@ -94,7 +94,7 @@ class QRLEnv(gym.Env):
 
         return self._get_obs(), reward, terminated, False, {"scheduled_qtask": scheduled_qtask}
     
-    def reset(self, *, seed=None, options=None) -> Tuple[Dict[str, Any], Dict]:
+    def reset(self, *, seed=None, return_info: bool = False, options=None) -> Tuple[Dict[str, Any], Dict]:
         super().reset(seed=seed)
         self._generate_qtasks()
         self.current_time = 0.0

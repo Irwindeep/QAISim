@@ -4,6 +4,7 @@ pytest
 qiskit
 numpy
 pandas
+gym==0.25.2
 cirq
 tensorflow==2.15.0
 tensorflow-quantum

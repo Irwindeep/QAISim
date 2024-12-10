@@ -61,3 +61,19 @@ class Alternating(tf.keras.layers.Layer):
 
     def call(self, inputs: tf.Tensor) -> tf.Tensor:
         return tf.matmul(inputs, self.w)
+
+class Rescaling(tf.keras.layers.Layer):
+    def __init__(self, input_dim: int) -> None:
+        super(Rescaling, self).__init__()
+
+        self.input_dim = input_dim
+        self.w = tf.Variable(
+            initial_value=tf.ones(shape=(1, input_dim)),
+            trainable=True, name="observable-weights"
+        )
+
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        return tf.math.multiply(
+            (inputs+1)/2,
+            tf.repeat(self.w,repeats=tf.shape(inputs)[0], axis=0)
+        )
