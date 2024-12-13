@@ -9,3 +9,4 @@ cirq
 tensorflow==2.15.0
 tensorflow-quantum
 tqdm
+ray[tune]

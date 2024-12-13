@@ -1,15 +1,12 @@
 from qpysim.utils import Dataset
-from qpysim.qrl import (
-    QRLEnv,
-    PolicyGradient,
-    ParametrizedQC
-)
+from qpysim.qrl import QRLEnv, PolicyGradient, ParametrizedQC
 from collections import defaultdict
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 dataset = Dataset(file_name="./data/qtasks_train.csv")
-state_bounds = [10000000, 156, 2000000, 250000]
+state_bounds = [60, 50, 17598, 17910]
 
 def generate_episodes(model, n_actions, n_episodes, x=None):
     episodes = [defaultdict(list) for _ in range(n_episodes)]
@@ -25,7 +22,7 @@ def generate_episodes(model, n_actions, n_episodes, x=None):
             state["qtask_circuit_layers"],
             state["qtask_gate_counts"]
         ]) for state in states]
-        
+
         unfinished_ids = [i for i in range(n_episodes) if not done[i]]
         normalized_states = [s/state_bounds for i, s in enumerate(states) if not done[i]]
 
@@ -35,21 +32,25 @@ def generate_episodes(model, n_actions, n_episodes, x=None):
         states = tf.convert_to_tensor(normalized_states)
         action_probs = model([states])
 
-        states = [None for i in range(n_episodes)]
+        states = [None for _ in range(n_episodes)]
         for i, policy in zip(unfinished_ids, action_probs.numpy()):
             action = np.random.choice(n_actions, p=policy)
-            states[i], reward, done[i], _ ,_ = envs[i].step(action)
+            states[i], reward, done[i], _, _ = envs[i].step(action)
             episodes[i]['actions'].append(action)
             episodes[i]['rewards'].append(reward)
 
     return episodes
 
-if __name__=="__main__":
-    num_qubits = 4
-    num_layers = 5
-    num_actions = 11
+def train_policy(config):
+    num_qubits = 5
+    num_layers = config["num_layers"]
+    lrs = (config["lr1"], config["lr2"], config["lr3"])
+    num_actions = 4
+    num_episodes = config["num_episodes"]
 
     paramatrized_qc = ParametrizedQC(num_qubits, num_layers)
+    policy_gradient_agent = PolicyGradient(paramatrized_qc, num_actions, lrs=lrs)
 
-    policy_gradient_agent = PolicyGradient(paramatrized_qc, num_actions)
-    policy_gradient_agent.train(generate_episodes, num_episodes=1000, threshold_reward=500.0)
+    policy_gradient_agent.train(generate_episodes, num_episodes=num_episodes, threshold_reward=100000)
+
+    return policy_gradient_agent.episode_reward_history

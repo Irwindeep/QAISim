@@ -37,14 +37,15 @@ qnodes: List[QNodeParams] = [
 class TestBroker(unittest.TestCase):
     def test_broker(self):
         class SimpleBroker(Broker):
-            def __init__(self,
+            def __init__(self, env: simpy.Environment,
                          qnodes: List[QNodeParams], qtasks: List[QTask]):
-                super().__init__(qnodes, qtasks)
+                super().__init__(env, qnodes, qtasks)
 
-            def assign(self, qtask: QTask) -> Tuple[int, QNode]:
-                return qtask.id - 1, self.qnodes[qtask.id - 1]
+            def assign(self, qtask: QTask) -> QNode:
+                return self.qnodes[qtask.id - 1]
         
-        broker = SimpleBroker(qnodes, qtasks)
+        env = simpy.Environment()
+        broker = SimpleBroker(env, qnodes, qtasks)
         broker.run()
 
         assert broker.qnodes[0].total_completed_qtasks == 1

@@ -5,7 +5,7 @@ from typing import (
     Tuple,
     List
 )
-import simpy, gym
+import gym, simpy
 import numpy as np
 from gym import spaces
 from qpysim import QTask, QNode
@@ -14,7 +14,7 @@ from qpysim.utils import Dataset
 from qpysim.qrl.env_qnodes import ibm_qnodes
 
 MAX_TIME=10000000
-MAX_CIRCUIT_LAYERS=2000000
+MAX_CIRCUIT_LAYERS=200000
 MAX_GATE_COUNTS=250000
 
 class QRLEnv(gym.Env):
@@ -23,7 +23,7 @@ class QRLEnv(gym.Env):
     def __init__(
         self,
         qtasks_dataset: Dataset,
-        num_qnodes: int = 11,
+        num_qnodes: int = 5,
         num_qtasks: int = 30,
         qnode_capacity: int = 1
     ) -> None:
@@ -33,8 +33,9 @@ class QRLEnv(gym.Env):
         self.num_qnodes = num_qnodes
         self.num_qtasks = num_qtasks
         self.qnode_capacity = qnode_capacity
+        self.sim_env = simpy.Environment()
 
-        self.broker = Broker(qnode_params=[param for _, param in ibm_qnodes.items()])
+        self.broker = Broker(self.sim_env, qnode_params=[param for _, param in ibm_qnodes.items()])
 
         self.qtasks = self.broker.qtasks
         self.target_specific_qtasks: List[Dict[int, QTask]] = []
@@ -55,24 +56,22 @@ class QRLEnv(gym.Env):
         self.current_target_specific_qtask: Optional[Dict[int, QTask]] = None
         self.current_time = 0.0
 
-    def assign_qtask_to_qnode(self, qtask: QTask, qnode: QNode, action: int, target_specific_qtask: QTask) -> float:
+    def assign_qtask_to_qnode(self, qtask: QTask, qnode: QNode, target_specific_qtask: QTask) -> float:
         # A condition never attainable at our dataset but for scalability
         if qtask.num_qubits > qnode.num_qubits:
             qtask.num_rescheduled += 1
             return -10.0
         
         qnode.add_qtask(target_specific_qtask)
-        qtask_execution = self.broker.task_executor(
-            self.broker.envs[action], qnode, target_specific_qtask
-        )
-        self.broker.envs[action].process(qtask_execution)
-        self.broker.envs[action].run()
+        qtask_execution = self.broker.task_executor(qnode, target_specific_qtask)
+        self.sim_env.process(qtask_execution)
+        self.sim_env.run()
 
         waiting_time = target_specific_qtask.exec_start_time - target_specific_qtask.arrival_time
         exec_time = target_specific_qtask.exec_end_time - target_specific_qtask.exec_start_time
 
         self.current_time += waiting_time + exec_time
-        return 1/(waiting_time + exec_time) - 10*qnode.eplg
+        return 1/(waiting_time + exec_time)
     
     def step(self, action: int) -> Tuple[Dict[str, Any], float, bool, bool, Dict[str, Any]]:
         if self.current_qtask is None or self.current_target_specific_qtask is None:
@@ -80,7 +79,7 @@ class QRLEnv(gym.Env):
         
         target_specific_qtask = self.current_target_specific_qtask[self.qnodes[action].num_qubits]
     
-        reward = self.assign_qtask_to_qnode(self.current_qtask, self.qnodes[action], action, target_specific_qtask)
+        reward = self.assign_qtask_to_qnode(self.current_qtask, self.qnodes[action], target_specific_qtask)
         scheduled_qtask = target_specific_qtask
 
         if len(self.qtasks) > 0:
@@ -98,6 +97,9 @@ class QRLEnv(gym.Env):
         super().reset(seed=seed)
         self._generate_qtasks()
         self.current_time = 0.0
+        self.broker = Broker(self.sim_env, qnode_params=[param for _, param in ibm_qnodes.items()])
+
+        self.qnodes = self.broker.qnodes
 
         return self._get_obs(), {}
 

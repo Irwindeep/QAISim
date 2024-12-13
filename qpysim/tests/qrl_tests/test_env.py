@@ -26,7 +26,7 @@ class TestQRLEnv(unittest.TestCase):
 
         state, _ = qrl_env.reset()
 
-        assert len(state) == 7
+        assert len(state) == 8
     
     def test_env_step(self):
         data_file = os.path.join(
@@ -40,8 +40,8 @@ class TestQRLEnv(unittest.TestCase):
         state, _ = qrl_env.reset()
         new_state, reward, terminated, _, qtask = qrl_env.step(0)
 
-        assert len(state) == 7
-        assert len(new_state) == 7
+        assert len(state) == 8
+        assert len(new_state) == 8
         assert terminated == False
         assert isinstance(reward, float)
 
@@ -60,7 +60,7 @@ class TestQRLEnv(unittest.TestCase):
 
         state, _ = qrl_env.reset()
         for i in range(30):
-            new_state, reward, terminated, _, _ = qrl_env.step(i%11)
+            new_state, reward, terminated, _, _ = qrl_env.step(i%4)
 
         assert terminated == True
         assert reward > 0
