@@ -152,7 +152,7 @@ class QRLEnv(gym.Env):
         self.current_qtask = self.qtasks.pop(0)
         self.current_ibm_qtask = self.ibm_qtasks.pop(0)
 
-    def _get_obs(self) -> Any:
+    def _get_obs(self) -> Observation:
         if self.current_qtask is None:
             return {}
 
