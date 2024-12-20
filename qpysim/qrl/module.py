@@ -49,6 +49,7 @@ class Module:
         self.optimizer_out = tf.keras.optimizers.Adam(learning_rate=lrs[self.w_out], amsgrad=True)
 
         self.episode_reward_history: List[float] = []
+        self.episode_length: List[int] = []
 
     def train(self, *args, **kwargs) -> None:
         raise NotImplementedError(

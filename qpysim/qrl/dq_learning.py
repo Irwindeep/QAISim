@@ -89,7 +89,7 @@ class DeepQLearning(Module):
         if self.model is None:
             raise RuntimeError("Model not defined")
 
-        self.episode_reward_history, step_count = [], 0
+        step_count = 0
         with tqdm(total=num_episodes, colour="cyan") as pbar:
             for episode_count in range(num_episodes):
                 pbar.set_description(f"Episode [{episode_count + 1}/{num_episodes}]")
@@ -128,6 +128,8 @@ class DeepQLearning(Module):
 
                 self.epsilon = max(self.epsilon * self.decay_epsilon, self.epsilon_min)
                 self.episode_reward_history.append(episode_reward)
+                self.episode_length.append(step_count)
+
                 average_rewards = np.mean(self.episode_reward_history[-batch_size:])
 
                 pbar.set_postfix({'Avg Reward': f"{average_rewards:.2f}"})

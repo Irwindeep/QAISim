@@ -74,7 +74,6 @@ class PolicyGradient(Module):
         num_episodes: int, batch_size: int = 10,
         threshold_reward: float = 500.0
     ) -> None:
-        self.episode_reward_history = []
         with tqdm(total=num_episodes // batch_size, colour="cyan") as pbar:
             for batch in range(num_episodes // batch_size):
                 pbar.set_description(f"Batch [{batch + 1}/{num_episodes // batch_size}]")
@@ -91,6 +90,7 @@ class PolicyGradient(Module):
                 id_action_pairs = np.array([[i, a] for i, a in enumerate(actions)], dtype=np.int32)
                 for episode_rewards in rewards:
                     self.episode_reward_history.append(np.sum(episode_rewards))
+                    self.episode_length.append(len(rewards))
 
                 average_rewards = np.mean(self.episode_reward_history[-batch_size:])
                 pbar.set_postfix({'Avg Reward': f"{average_rewards:.2f}"})
