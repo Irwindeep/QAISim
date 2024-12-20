@@ -5,19 +5,19 @@ class TestDataset(unittest.TestCase):
     def test_data_loading(self):
         data_file = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
-            "../../data/qtasks_test.csv"
+            "./testing_dataset.csv"
         )
 
         dataset = Dataset(data_file)
         dataset.load_data()
 
-        assert len(dataset.data) == 22800
+        assert len(dataset.data) == 153
         assert len(list(dataset.data.values())[0]) == 4
 
     def test_qtask_collection(self):
         data_file = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
-            "../../data/qtasks_test.csv"
+            "./testing_dataset.csv"
         )
 
         dataset = Dataset(data_file)

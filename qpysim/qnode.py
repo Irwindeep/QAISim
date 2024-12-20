@@ -1,4 +1,4 @@
-from typing import List, Generator, NamedTuple
+from typing import List, Generator, NamedTuple, Tuple
 from qpysim.utils import TaskStatus
 from qpysim.qtask import QTask
 import simpy
@@ -28,6 +28,8 @@ class QNode:
         self.total_completed_qtasks = 0
         self.total_running_time = 0.0
 
+        self.busy_time: List[Tuple[float, float]] = []
+
     def add_qtask(self, qtask: QTask) -> None:
         self.qtasks.append(qtask)
         qtask.status == TaskStatus.QUEUED
@@ -47,6 +49,8 @@ class QNode:
         self.qtasks.remove(qtask)
         self.total_completed_qtasks += 1
         self.total_running_time += exec_time
+
+        self.busy_time.append((qtask.exec_start_time, qtask.exec_end_time))
 
     def __repr__(self) -> str:
         return f"QNode(id={self.id}, capacity={self.capacity.capacity})"
