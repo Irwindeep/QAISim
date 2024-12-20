@@ -18,6 +18,7 @@ from gym import spaces
 MAX_CIRCUIT_LAYERS=200000
 MAX_GATE_COUNTS=250000
 MAX_QUEUED_TASKS=30
+MAX_RESCHEDULING=10
 
 Observation = Dict[str, NDArray]
 
@@ -102,6 +103,10 @@ class QRLEnv(gym.Env):
     def _assign_qtask_to_qnode(self, qtask: QTask, qnode: QNode, ibm_qtask: QTask) -> float:
         if qtask.num_qubits > qnode.num_qubits:
             qtask.num_rescheduled += 1
+            if qtask.num_rescheduled <= MAX_RESCHEDULING:
+                self.qtasks.append(self.current_qtask)
+                self.ibm_qtasks.append(self.ibm_qtasks)
+            
             return -10.0
         
         qnode.add_qtask(ibm_qtask)
