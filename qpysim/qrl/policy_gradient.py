@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List
 from qpysim.qrl.module import (
     Module,
     EpisodeCallable

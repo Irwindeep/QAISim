@@ -101,6 +101,9 @@ class QRLEnv(gym.Env):
         return self._get_obs(), reward, terminated, False, {"scheduled_qtask": ibm_qtask}
 
     def _assign_qtask_to_qnode(self, qtask: QTask, qnode: QNode, ibm_qtask: QTask) -> float:
+        if self.current_qtask is None or self.current_ibm_qtask is None:
+            raise RuntimeError("Cannot assign empty task")
+        
         if qtask.num_qubits > qnode.num_qubits:
             qtask.num_rescheduled += 1
 

@@ -93,4 +93,4 @@ if __name__=="__main__":
     plt.title("Episode Length - Policy", fontweight="bold")
     plt.savefig("./results/policy/episode_length.pdf")
 
-    policy_grad_agent.model.save("./results/policy/model")
+    policy_grad_agent.model.save_weights("./results/policy/model.h5")
