@@ -39,6 +39,10 @@ class DeepQLearning(Module):
             reduce(lambda x, y: x*y, operations[i: i+2])
             for i in range(0, len(operations), 2)
         ]
+        for i in range(self.num_actions - len(self.observables)):
+            self.observables.append(operations[i] * operations[len(operations) - i - 1])
+
+        assert len(self.observables) == num_actions
 
         self.model = self._create_model_policy(target=False)
         self.model_target = self._create_model_policy(target=True)
@@ -93,17 +97,24 @@ class DeepQLearning(Module):
         with tqdm(total=num_episodes, colour="cyan") as pbar:
             for episode_count in range(num_episodes):
                 pbar.set_description(f"Episode [{episode_count + 1}/{num_episodes}]")
-                episode_reward = 0.0
-                state = env.reset()
-                state = np.array(state)
+                episode_reward, episode_length = 0.0, 0
+                state = env.reset()[0]
 
                 while True:
+                    state = np.concatenate([
+                        state["qnode_queued_tasks"],
+                        state["qtask_arrival_time"],
+                        state["qtask_num_qubits"],
+                        state["qtask_circuit_layers"]
+                    ])
+
                     interaction = generate_episode(self.model, self.num_actions, self.epsilon, state)[0]
-                    self.replay_memory.append(interaction)
+                    if not interaction["done"]: self.replay_memory.append(interaction)
 
                     state = interaction['next_state']
                     episode_reward += interaction['reward']
                     step_count += 1
+                    episode_length += 1
 
                     if step_count % self.step_updates[0] == 0:
                         if batch_size > len(self.replay_memory):
@@ -117,7 +128,15 @@ class DeepQLearning(Module):
                             np.asarray([x['state'] for x in training_batch], dtype=np.float32),
                             np.asarray([x['action'] for x in training_batch], dtype=np.int32),
                             np.asarray([x['reward'] for x in training_batch], dtype=np.float32),
-                            np.asarray([x['next_state'] for x in training_batch], dtype=np.float32),
+                            np.asarray([
+                                np.concatenate([
+                                    x['next_state']["qnode_queued_tasks"],
+                                    x['next_state']["qtask_arrival_time"],
+                                    x['next_state']["qtask_num_qubits"],
+                                    x['next_state']["qtask_circuit_layers"]
+                                ])
+                                for x in training_batch
+                            ], dtype=np.float32),
                             np.asarray([x['done'] for x in training_batch], dtype=np.float32)
                         )
 
@@ -128,7 +147,7 @@ class DeepQLearning(Module):
 
                 self.epsilon = max(self.epsilon * self.decay_epsilon, self.epsilon_min)
                 self.episode_reward_history.append(episode_reward)
-                self.episode_length.append(step_count)
+                self.episode_length.append(episode_length)
 
                 average_rewards = np.mean(self.episode_reward_history[-batch_size:])
 
