@@ -39,7 +39,7 @@ class PolicyGradient(Module):
 
         return np_returns
     
-    @tf.function
+    @tf.function(reduce_retracing=True)
     def reinforcement_update(
         self,
         states: NDArray[np.float32],
@@ -90,7 +90,7 @@ class PolicyGradient(Module):
                 id_action_pairs = np.array([[i, a] for i, a in enumerate(actions)], dtype=np.int32)
                 for episode_rewards in rewards:
                     self.episode_reward_history.append(np.sum(episode_rewards))
-                    self.episode_length.append(len(rewards))
+                    self.episode_length.append(len(episode_rewards))
 
                 average_rewards = np.mean(self.episode_reward_history[-batch_size:])
                 pbar.set_postfix({'Avg Reward': f"{average_rewards:.2f}"})

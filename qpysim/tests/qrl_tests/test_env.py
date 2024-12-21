@@ -60,7 +60,7 @@ class TestQRLEnv(unittest.TestCase):
 
         state, _ = qrl_env.reset()
         for i in range(30):
-            new_state, reward, terminated, _, _ = qrl_env.step(i%qrl_env.num_qnodes)
+            new_state, reward, terminated, _, _ = qrl_env.step(i%4)
             if i == 15:
                 assert any(new_state["qnode_queued_tasks"] > 0)
 

@@ -44,7 +44,7 @@ class DeepQLearning(Module):
         self.model_target = self._create_model_policy(target=True)
         self.model_target.set_weights(self.model.get_weights())
 
-    @tf.function
+    @tf.function(reduce_retracing=True)
     def q_learning_update(
         self,
         states: NDArray[np.float32],
