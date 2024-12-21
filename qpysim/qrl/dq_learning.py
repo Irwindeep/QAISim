@@ -1,4 +1,4 @@
-from typing import Tuple, Deque, Dict
+from typing import Tuple, Deque, Dict, Any
 from qpysim.qrl.module import (
     Module,
     EpisodeCallable
@@ -15,7 +15,7 @@ import tensorflow as tf # type: ignore[import-untyped]
 from collections import deque
 from tqdm import tqdm
 
-ReplayMem = Deque[Dict[str, NDArray[np.float32]]]
+ReplayMem = Deque[Dict[str, Any]]
 
 class DeepQLearning(Module):
     def __init__(
