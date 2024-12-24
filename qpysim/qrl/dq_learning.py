@@ -156,6 +156,42 @@ class DeepQLearning(Module):
 
                 if average_rewards >= threshold_reward: break
 
+    def eval(
+        self,
+        env: gym.Env,
+        generate_episode: EpisodeCallable,
+        num_episodes: int, batch_size: int = 16
+    ) -> None:
+        with tqdm(total=num_episodes, colour="cyan") as pbar:
+            for episode_count in range(num_episodes):
+                pbar.set_description(f"Episode [{episode_count + 1}/{num_episodes}]")
+                episode_reward, episode_length = 0.0, 0
+                state = env.reset()[0]
+
+                while True:
+                    state = np.concatenate([
+                        state["qnode_queued_tasks"],
+                        state["qtask_arrival_time"],
+                        state["qtask_num_qubits"],
+                        state["qtask_circuit_layers"]
+                    ])
+
+                    interaction = generate_episode(self.model, self.num_actions, self.epsilon, state)[0]
+
+                    state = interaction['next_state']
+                    episode_reward += interaction['reward']
+                    episode_length += 1
+
+                    if interaction['done']: break
+
+                self.eval_episode_reward_history.append(episode_reward)
+                self.eval_episode_length.append(episode_length)
+
+                average_rewards = np.mean(self.eval_episode_reward_history[-batch_size:])
+
+                pbar.set_postfix({'Avg Reward': f"{average_rewards:.2f}"})
+                pbar.update(1)
+
     def _create_model_policy(self, target: bool) -> tf.keras.Model:
         if self.observables is None:
             raise RuntimeError("Observables not defined")

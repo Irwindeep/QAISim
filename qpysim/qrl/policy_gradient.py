@@ -99,6 +99,26 @@ class PolicyGradient(Module):
                 if average_rewards >= threshold_reward: break
                 self.reinforcement_update(states, id_action_pairs, returns, batch_size)
 
+    def eval(
+        self,
+        generate_episodes: EpisodeCallable,
+        num_episodes: int, batch_size: int = 10,
+    ) -> None:
+        with tqdm(total=num_episodes // batch_size, colour="cyan") as pbar:
+            for batch in range(num_episodes // batch_size):
+                pbar.set_description(f"Batch [{batch + 1}/{num_episodes // batch_size}]")
+                episodes = generate_episodes(self.model, self.num_actions, batch_size, None)
+
+                rewards = [ep['rewards'] for ep in episodes]
+
+                for episode_rewards in rewards:
+                    self.eval_episode_reward_history.append(np.sum(episode_rewards))
+                    self.eval_episode_length.append(len(episode_rewards))
+
+                average_rewards = np.mean(self.eval_episode_reward_history[-batch_size:])
+                pbar.set_postfix({'Avg Reward': f"{average_rewards:.2f}"})
+                pbar.update(1)
+
     def _create_model_policy(self) -> tf.keras.Model:
         if self.observables is None:
             raise RuntimeError("Observables not defined")

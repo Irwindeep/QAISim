@@ -51,7 +51,15 @@ class Module:
         self.episode_reward_history: List[float] = []
         self.episode_length: List[int] = []
 
+        self.eval_episode_reward_history: List[float] = []
+        self.eval_episode_length: List[int] = []
+
     def train(self, *args, **kwargs) -> None:
+        raise NotImplementedError(
+            f"Module [{type(self).__name__}] is missing `train` function implementation"
+        )
+    
+    def eval(self, *args, **kwargs) -> None:
         raise NotImplementedError(
             f"Module [{type(self).__name__}] is missing `train` function implementation"
         )
