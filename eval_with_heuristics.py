@@ -24,6 +24,25 @@ class GreedyAgent(tf.keras.Model):
         action_probs = tf.one_hot(greedy_actions, depth=self.num_actions, dtype=tf.float32)
         return action_probs
     
+class GreedyBaseline(tf.keras.Model):
+    def __init__(self, num_actions):
+        super(GreedyBaseline, self).__init__()
+        self.num_actions = num_actions
+        self.qnode_qubits = [156, 133, 127, 127, 27]
+
+    def call(self, inputs):
+        inputs = inputs[0]
+        batch_size = tf.shape(inputs)[0]
+        valid_actions_mask = tf.map_fn(
+            lambda i: self.qnode_qubits >= inputs[i, 6]*50,
+            tf.range(batch_size), dtype=tf.bool
+        )
+
+        masked_inputs = tf.where(valid_actions_mask, inputs[:, :self.num_actions], float('inf'))
+        greedy_actions = tf.argmin(masked_inputs, axis=1)
+        action_probs = tf.one_hot(greedy_actions, depth=self.num_actions, dtype=tf.float32)
+        return action_probs
+    
 class RandomAgent(tf.keras.Model):
     def __init__(self, num_actions):
         super(RandomAgent, self).__init__()
