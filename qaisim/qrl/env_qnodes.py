@@ -1,4 +1,4 @@
-from qpysim.qnode import QNodeParams
+from qaisim.qnode import QNodeParams
 
 # IBM QPUs as of 8th dec 2024
 ibm_qnodes = {

@@ -1,6 +1,6 @@
 import unittest
-from qpysim.utils import TaskStatus
-from qpysim.qtask import QTask
+from qaisim.utils import TaskStatus
+from qaisim.qtask import QTask
 
 class TestQTask(unittest.TestCase):
     def test_qtask(self):

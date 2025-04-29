@@ -1,6 +1,6 @@
 import unittest, os
-from qpysim.qrl.qrl_env import QRLEnv
-from qpysim.utils import Dataset
+from qaisim.qrl.qrl_env import QRLEnv
+from qaisim.utils import Dataset
 
 class TestQRLEnv(unittest.TestCase):
     def test_env_initialisation(self):

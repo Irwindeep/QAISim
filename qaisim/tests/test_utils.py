@@ -1,5 +1,5 @@
 import unittest, os
-from qpysim.utils import Dataset
+from qaisim.utils import Dataset
 
 class TestDataset(unittest.TestCase):
     def test_data_loading(self):

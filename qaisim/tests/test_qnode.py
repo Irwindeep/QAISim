@@ -1,8 +1,8 @@
 from typing import Generator, List
 import unittest
 import simpy
-from qpysim.qtask import QTask
-from qpysim.qnode import QNode
+from qaisim.qtask import QTask
+from qaisim.qnode import QNode
 
 qtasks: List[QTask] = [
     QTask(

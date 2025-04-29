@@ -1,5 +1,5 @@
 import unittest, cirq
-from qpysim.qrl.parametrized_qc import ParametrizedQC
+from qaisim.qrl.parametrized_qc import ParametrizedQC
 
 class TestPQC(unittest.TestCase):
     def test_pqc_circuit(self):

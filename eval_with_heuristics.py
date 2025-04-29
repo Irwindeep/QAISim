@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from qpysim.qrl import (
+from qaisim.qrl import (
     ParametrizedQC,
     PolicyGradient,
     DeepQLearning

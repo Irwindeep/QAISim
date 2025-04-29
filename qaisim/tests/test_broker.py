@@ -1,9 +1,9 @@
-from typing import List, Tuple
+from typing import List
 import unittest
 import simpy
-from qpysim.qtask import QTask
-from qpysim.qnode import QNode, QNodeParams
-from qpysim.broker import Broker
+from qaisim.qtask import QTask
+from qaisim.qnode import QNode, QNodeParams
+from qaisim.broker import Broker
 
 qtasks: List[QTask] = [
     QTask(

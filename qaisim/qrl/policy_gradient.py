@@ -1,9 +1,9 @@
 from typing import List
-from qpysim.qrl.module import (
+from qaisim.qrl.module import (
     Module,
     EpisodeCallable
 )
-from qpysim.qrl.layers import (
+from qaisim.qrl.layers import (
     ReUploading,
     Alternating
 )

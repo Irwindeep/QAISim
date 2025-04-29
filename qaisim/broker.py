@@ -1,7 +1,7 @@
 from typing import List, Generator, Union, Tuple
 import simpy
-from qpysim.qtask import QTask
-from qpysim.qnode import QNode, QNodeParams
+from qaisim.qtask import QTask
+from qaisim.qnode import QNode, QNodeParams
 
 class Broker:
     def __init__(

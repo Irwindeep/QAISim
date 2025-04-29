@@ -10,7 +10,7 @@ from typing import (
     Any
 )
 from numpy.typing import NDArray
-from qpysim.qrl.parametrized_qc import ParametrizedQC
+from qaisim.qrl.parametrized_qc import ParametrizedQC
 import cirq
 import numpy as np
 import tensorflow as tf # type: ignore[import-untyped]

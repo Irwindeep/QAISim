@@ -1,6 +1,6 @@
 import unittest, cirq
-from qpysim.qrl.parametrized_qc import ParametrizedQC
-from qpysim.qrl.layers import ReUploading
+from qaisim.qrl.parametrized_qc import ParametrizedQC
+from qaisim.qrl.layers import ReUploading
 from functools import reduce
 import tensorflow as tf # type: ignore[import-untyped]
 

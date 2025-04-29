@@ -1,5 +1,5 @@
-from qpysim.utils import Dataset
-from qpysim.qrl import QRLEnv, PolicyGradient, ParametrizedQC
+from qaisim.utils import Dataset
+from qaisim.qrl import QRLEnv, PolicyGradient, ParametrizedQC
 from collections import defaultdict
 import numpy as np
 import tensorflow as tf

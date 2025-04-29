@@ -1,5 +1,5 @@
 from typing import List
-from qpysim.qrl.parametrized_qc import ParametrizedQC
+from qaisim.qrl.parametrized_qc import ParametrizedQC
 import cirq
 import tensorflow as tf # type: ignore[import-untyped]
 import tensorflow_quantum as tfq # type: ignore[import-untyped]

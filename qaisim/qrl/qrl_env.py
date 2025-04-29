@@ -9,9 +9,9 @@ from typing import (
 import gym, simpy
 import numpy as np
 from numpy.typing import NDArray
-from qpysim import QTask, QNode
-from qpysim.utils import Dataset
-from qpysim.broker import Broker
+from qaisim import QTask, QNode
+from qaisim.utils import Dataset
+from qaisim.broker import Broker
 from .env_qnodes import ibm_qnodes
 from gym import spaces
 

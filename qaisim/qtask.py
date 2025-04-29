@@ -1,4 +1,4 @@
-from qpysim.utils import TaskStatus
+from qaisim.utils import TaskStatus
 
 class QTask:
     def __init__(

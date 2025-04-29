@@ -1,6 +1,6 @@
 import numpy as np
-from qpysim.utils import Dataset
-from qpysim.qrl import QRLEnv, ParametrizedQC, DeepQLearning
+from qaisim.utils import Dataset
+from qaisim.qrl import QRLEnv, ParametrizedQC, DeepQLearning
 import tensorflow as tf
 import matplotlib.pyplot as plt
 

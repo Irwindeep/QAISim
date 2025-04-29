@@ -1,9 +1,9 @@
-from qpysim.broker import Broker
-from qpysim.qnode import (
+from qaisim.broker import Broker
+from qaisim.qnode import (
     QNode,
     QNodeParams
 )
-from qpysim.qtask import QTask
+from qaisim.qtask import QTask
 from . import qrl
 
 __all__ = [
