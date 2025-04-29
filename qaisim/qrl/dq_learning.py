@@ -51,19 +51,20 @@ class DeepQLearning(Module):
     @tf.function(reduce_retracing=True)
     def q_learning_update(
         self,
-        states: NDArray[np.float32],
-        actions: NDArray[np.int32],
-        rewards: NDArray[np.float32],
-        next_states: NDArray[np.float32], done: NDArray[np.float32]
+        states_np: NDArray[np.float32],
+        actions_np: NDArray[np.int32],
+        rewards_np: NDArray[np.float32],
+        next_states_np: NDArray[np.float32],
+        done_np: NDArray[np.float32]
     ) -> None:
         if self.model is None:
             raise RuntimeError("Model not defined")
         
-        states = tf.convert_to_tensor(states)
-        actions = tf.convert_to_tensor(actions)
-        rewards = tf.convert_to_tensor(rewards)
-        next_states = tf.convert_to_tensor(next_states)
-        done = tf.convert_to_tensor(done)
+        states = tf.convert_to_tensor(states_np)
+        actions = tf.convert_to_tensor(actions_np)
+        rewards = tf.convert_to_tensor(rewards_np)
+        next_states = tf.convert_to_tensor(next_states_np)
+        done = tf.convert_to_tensor(done_np)
 
         future_rewards = self.model_target([next_states])
         target_q_values = rewards + (self.gamma * 
@@ -162,6 +163,8 @@ class DeepQLearning(Module):
         generate_episode: EpisodeCallable,
         num_episodes: int, batch_size: int = 16
     ) -> None:
+        if not self.model:
+            raise RuntimeError("Model not defined")
         with tqdm(total=num_episodes, colour="cyan") as pbar:
             for episode_count in range(num_episodes):
                 pbar.set_description(f"Episode [{episode_count + 1}/{num_episodes}]")

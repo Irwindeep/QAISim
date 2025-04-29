@@ -42,17 +42,17 @@ class PolicyGradient(Module):
     @tf.function(reduce_retracing=True)
     def reinforcement_update(
         self,
-        states: NDArray[np.float32],
-        actions: NDArray[np.int32],
-        returns: NDArray[np.float32],
+        states_np: NDArray[np.float32],
+        actions_np: NDArray[np.int32],
+        returns_np: NDArray[np.float32],
         batch_size: int
     ) -> None:
         if self.model is None:
             raise RuntimeError("Model not defined")
         
-        states = tf.convert_to_tensor(states)
-        actions = tf.convert_to_tensor(actions)
-        returns = tf.convert_to_tensor(returns)
+        states = tf.convert_to_tensor(states_np)
+        actions = tf.convert_to_tensor(actions_np)
+        returns = tf.convert_to_tensor(returns_np)
 
         with tf.GradientTape() as tape:
             tape.watch(self.model.trainable_variables)
@@ -74,6 +74,8 @@ class PolicyGradient(Module):
         num_episodes: int, batch_size: int = 10,
         threshold_reward: float = 500.0
     ) -> None:
+        if not self.model:
+            raise RuntimeError("Model not defined")
         with tqdm(total=num_episodes // batch_size, colour="cyan") as pbar:
             for batch in range(num_episodes // batch_size):
                 pbar.set_description(f"Batch [{batch + 1}/{num_episodes // batch_size}]")
@@ -104,6 +106,8 @@ class PolicyGradient(Module):
         generate_episodes: EpisodeCallable,
         num_episodes: int, batch_size: int = 10,
     ) -> None:
+        if not self.model:
+            raise RuntimeError("Model not defined")
         with tqdm(total=num_episodes // batch_size, colour="cyan") as pbar:
             for batch in range(num_episodes // batch_size):
                 pbar.set_description(f"Batch [{batch + 1}/{num_episodes // batch_size}]")
