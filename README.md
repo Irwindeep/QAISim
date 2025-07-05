@@ -1,1 +1,1 @@
-# quantum-py-sim
+# QAISim
