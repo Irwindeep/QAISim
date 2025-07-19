@@ -2,7 +2,7 @@ from typing import List
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from qaisim.qrl import ParametrizedQC, PolicyGradient, DeepQLearning, parametrized_qc
+from qaisim.qrl import ParametrizedQC, PolicyGradient, DeepQLearning
 from train_classical import MLP
 from train_policy import generate_episodes
 from train_q_val import episode_interaction, env
@@ -64,6 +64,7 @@ def plot(
     classical_returns: List[float],
     title: str,
     save_path: str,
+    attr: str = "Returns",
 ) -> None:
     baseline_returns_np = np.convolve(baseline_returns, np.ones(10) / 10, mode="valid")
     quantum_returns_np = np.convolve(quantum_returns, np.ones(10) / 10, mode="valid")
@@ -71,11 +72,11 @@ def plot(
         classical_returns, np.ones(10) / 10, mode="valid"
     )
 
-    plt.plot(quantum_returns_np, color="blue", label="Quantum Returns")
-    plt.plot(classical_returns_np, color="red", label="Classical Returns")
-    plt.plot(baseline_returns_np, color="green", label="Baseline Returns")
+    plt.plot(quantum_returns_np, color="blue", label=f"QAISim")
+    plt.plot(classical_returns_np, color="red", label=f"QSimPy")
+    plt.plot(baseline_returns_np, color="green", label=f"Baseline")
     plt.xlabel("Episode")
-    plt.ylabel("Reward")
+    plt.ylabel(attr)
     plt.legend()
     plt.title(title, fontweight="bold")
     plt.savefig(save_path)
@@ -92,20 +93,23 @@ def evaluate_policy() -> None:
     model_quantum.model.load_weights("./results/policy/model.h5")
     model_quantum.eval(generate_episodes, num_episodes=num_episodes)
     quantum_returns = model_quantum.eval_episode_reward_history
+    quantum_waiting_time = model_quantum.eval_waiting_time
 
     model_classical = MLP(num_actions=5, raw_scores=False)
     model_classical.build(input_shape=(None, 8))
     model_classical.load_weights("./results/policy/classical_model.h5")
-    classical_returns = []
+    classical_returns, classical_waiting_time = [], []
 
     pbar = tqdm(total=num_episodes // batch_size, colour="cyan")
     for batch in range(num_episodes // batch_size):
         pbar.set_description(f"Batch [{batch + 1}/{num_episodes // batch_size}]")
         episodes = generate_episodes(model_classical, num_actions, batch_size, None)
         rewards = [ep["rewards"] for ep in episodes]
+        waiting_times = [ep["waiting_time"] for ep in episodes]
 
-        for ep_rewards in rewards:
+        for i, ep_rewards in enumerate(rewards):
             classical_returns.append(np.sum(ep_rewards))
+            classical_waiting_time.append(np.sum(waiting_times[i]))
 
         avg_rewards = np.mean(classical_returns[-batch_size:])
         pbar.set_postfix({"Avg Reward": f"{avg_rewards:.2f}"})
@@ -125,6 +129,20 @@ def evaluate_policy() -> None:
         save_path="./results/policy/policy_eval.pdf",
     )
 
+    plt.clf()
+    classical_wt_np = np.convolve(
+        classical_waiting_time, np.ones(10) / 10, mode="valid"
+    )
+    quantum_wt_np = np.convolve(quantum_waiting_time, np.ones(10) / 10, mode="valid")
+
+    plt.plot(quantum_wt_np, color="blue", label="QAISim")
+    plt.plot(classical_wt_np, color="red", label="QSimPy")
+    plt.xlabel("Episode")
+    plt.ylabel("Waiting Time")
+    plt.legend()
+    plt.title("Task Waiting Time - Policy", fontweight="bold")
+    plt.savefig("./results/policy/waiting_time.pdf")
+
 
 def evaluate_q_val() -> None:
     num_actions = 5
@@ -141,16 +159,17 @@ def evaluate_q_val() -> None:
 
     model_quantum.eval(env, episode_interaction, num_episodes)
     quantum_returns = model_quantum.eval_episode_reward_history
+    quantum_waiting_time = model_quantum.eval_waiting_time
 
     model_classical = MLP(num_actions=5, raw_scores=True)
     model_classical.build(input_shape=(None, 8))
     model_classical.load_weights("./results/dq_learning/classical_model.h5")
-    classical_returns = []
+    classical_returns, classical_waiting_time = [], []
 
     pbar = tqdm(total=num_episodes, colour="cyan")
     for episode in range(num_episodes):
         pbar.set_description(f"Episode [{episode + 1}/{num_episodes}]")
-        episode_reward = 0.0
+        episode_reward, episode_wt = 0.0, 0.0
         state = env.reset()[0]
 
         while True:
@@ -169,11 +188,14 @@ def evaluate_q_val() -> None:
 
             state = interaction["next_state"]
             episode_reward += interaction["reward"]
+            episode_wt += interaction["waiting_time"]
 
             if interaction["done"]:
                 break
 
         classical_returns.append(episode_reward)
+        classical_waiting_time.append(episode_wt)
+
         average_rewards = np.mean(classical_returns[-batch_size:])
 
         pbar.set_postfix({"Avg Reward": f"{average_rewards:.2f}"})
@@ -192,6 +214,20 @@ def evaluate_q_val() -> None:
         title="Deep Q-Learning Evaluation",
         save_path="./results/dq_learning/dql_eval.pdf",
     )
+
+    plt.clf()
+    classical_wt_np = np.convolve(
+        classical_waiting_time, np.ones(10) / 10, mode="valid"
+    )
+    quantum_wt_np = np.convolve(quantum_waiting_time, np.ones(10) / 10, mode="valid")
+
+    plt.plot(quantum_wt_np, color="blue", label="QAISim")
+    plt.plot(classical_wt_np, color="red", label="QSimPy")
+    plt.xlabel("Episode")
+    plt.ylabel("Waiting Time")
+    plt.legend()
+    plt.title("Task Waiting Time - Deep Q-Learning", fontweight="bold")
+    plt.savefig("./results/dq_learning/waiting_time.pdf")
 
 
 if __name__ == "__main__":

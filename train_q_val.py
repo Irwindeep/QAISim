@@ -7,8 +7,9 @@ import matplotlib.pyplot as plt
 dataset = Dataset(file_name="./data/qtasks_train.csv")
 env = QRLEnv(dataset)
 
-plt.style.use('seaborn-v0_8-whitegrid')
-plt.rc('font', family='serif')
+plt.style.use("seaborn-v0_8-whitegrid")
+plt.rc("font", family="serif")
+
 
 def episode_interaction(model, n_actions, epsilon, state):
     state_array = state
@@ -21,11 +22,18 @@ def episode_interaction(model, n_actions, epsilon, state):
     else:
         action = np.random.choice(n_actions)
 
-    next_state, reward, done, _, _ = env.step(action)
-    interaction = {'state': state_array, 'action': action, 'next_state': next_state.copy(),
-                'reward': reward, 'done':np.float32(done)}
-    
+    next_state, reward, done, _, _, waiting_time = env.step(action)
+    interaction = {
+        "state": state_array,
+        "action": action,
+        "next_state": next_state.copy(),
+        "reward": reward,
+        "done": np.float32(done),
+        "waiting_time": waiting_time,
+    }
+
     return [interaction]
+
 
 def train_q_val():
     num_qubits = 8
@@ -41,26 +49,25 @@ def train_q_val():
         env=env,
         generate_episode=episode_interaction,
         num_episodes=num_episodes,
-        threshold_reward=100
+        threshold_reward=100,
     )
 
     return dql_agent
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     dql_agent = train_q_val()
 
     episode_rewards = dql_agent.episode_reward_history
-    smoothed_rewards = np.convolve(
-        episode_rewards, np.ones(20)/20, mode="valid"
-    )
+    smoothed_rewards = np.convolve(episode_rewards, np.ones(20) / 20, mode="valid")
 
     episode_length = dql_agent.episode_length
-    episode_length = np.convolve(
-        episode_length, np.ones(20)/20, mode="valid"
-    )
+    episode_length = np.convolve(episode_length, np.ones(20) / 20, mode="valid")
 
     plt.plot(episode_rewards, alpha=0.3)
-    plt.plot(range(len(smoothed_rewards)), smoothed_rewards, color="blue", linewidth=1.5)
+    plt.plot(
+        range(len(smoothed_rewards)), smoothed_rewards, color="blue", linewidth=1.5
+    )
     plt.xlabel("Episode")
     plt.ylabel("Reward")
     plt.title("Q-Value Training", fontweight="bold")
