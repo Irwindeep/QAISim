@@ -1,12 +1,15 @@
-from typing import Optional, Dict, Any, Tuple, List, Union
-import gym, simpy
 import numpy as np
-from numpy.typing import NDArray
+import gym
+import simpy
+
+from gym import spaces
 from qaisim import QTask, QNode
 from qaisim.utils import Dataset
 from qaisim.broker import Broker
-from .env_qnodes import ibm_qnodes
-from gym import spaces
+from qaisim.qrl.env_qnodes import ibm_qnodes
+
+from typing import Optional, Dict, Any, Tuple, List, Union
+from numpy.typing import NDArray
 
 MAX_CIRCUIT_LAYERS = 200000
 MAX_GATE_COUNTS = 250000

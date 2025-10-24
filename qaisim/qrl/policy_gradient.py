@@ -1,12 +1,15 @@
-from typing import List
+import numpy as np
+import tensorflow as tf
+import keras
+
+from cirq.ops.pauli_gates import Z
 from qaisim.qrl.module import Module, EpisodeCallable
 from qaisim.qrl.layers import ReUploading, Alternating
-import cirq
-import numpy as np
-from numpy.typing import NDArray
-import tensorflow as tf  # type: ignore[import-untyped]
+
 from functools import reduce
 from tqdm import tqdm
+from typing import List
+from numpy.typing import NDArray
 
 
 class PolicyGradient(Module):
@@ -21,7 +24,7 @@ class PolicyGradient(Module):
         super().__init__(parametrized_qc, num_actions, gamma, lrs)
 
         self.beta = beta
-        operations = [cirq.Z(qubit) for qubit in self.qubits]
+        operations = [Z(qubit) for qubit in self.qubits]
         self.observables = [reduce(lambda x, y: x * y, operations)]
 
         self.model = self._create_model_policy()
@@ -148,24 +151,24 @@ class PolicyGradient(Module):
                 pbar.set_postfix({"Avg Reward": f"{average_rewards:.2f}"})
                 pbar.update(1)
 
-    def _create_model_policy(self) -> tf.keras.Model:
+    def _create_model_policy(self) -> keras.Model:
         if self.observables is None:
             raise RuntimeError("Observables not defined")
 
-        input_tensor = tf.keras.Input(
+        input_tensor = keras.Input(
             shape=(self.num_qubits,), dtype=tf.dtypes.float32, name="input"
         )
         re_uploading = ReUploading(self.parametrized_qc, self.observables)
         re_uploading_output = re_uploading([input_tensor])
 
-        process = tf.keras.Sequential(
+        process = keras.Sequential(
             [
                 Alternating(self.num_actions),
-                tf.keras.layers.Lambda(lambda x: x * self.beta),
-                tf.keras.layers.Softmax(),
+                keras.layers.Lambda(lambda x: x * self.beta),
+                keras.layers.Softmax(),
             ],
             name="observables-policy",
         )
 
         policy = process(re_uploading_output)
-        return tf.keras.Model(inputs=[input_tensor], outputs=policy)
+        return keras.Model(inputs=[input_tensor], outputs=policy)

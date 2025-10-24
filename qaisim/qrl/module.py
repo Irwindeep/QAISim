@@ -1,16 +1,17 @@
 # Base class for qrl agents
 
+import numpy as np
+import keras
+
 from typing import Tuple, Optional, List, Callable, Dict, Union, Any
 from numpy.typing import NDArray
 from qaisim.qrl.parametrized_qc import ParametrizedQC
-import cirq
-import numpy as np
-import tensorflow as tf  # type: ignore[import-untyped]
+from cirq.ops.pauli_string import PauliString
 
-Observable = List[cirq.PauliString]
+Observable = List[PauliString]
 EpisodicOutcome = List[Dict[str, Any]]
 EpisodeCallable = Callable[
-    [tf.keras.Model, int, Union[int, float], Optional[NDArray[np.float32]]],
+    [keras.Model, int, Union[int, float], Optional[NDArray[np.float32]]],
     EpisodicOutcome,
 ]
 
@@ -33,17 +34,17 @@ class Module:
         self.gamma = gamma
 
         self.observables: Optional[Observable] = None
-        self.model: Optional[tf.keras.Model] = None
+        self.model: Optional[keras.Model] = None
 
         self.w_in, self.w_var, self.w_out = 1, 0, 2
 
-        self.optimizer_in = tf.keras.optimizers.Adam(
+        self.optimizer_in = keras.optimizers.Adam(
             learning_rate=lrs[self.w_in], amsgrad=True
         )
-        self.optimizer_var = tf.keras.optimizers.Adam(
+        self.optimizer_var = keras.optimizers.Adam(
             learning_rate=lrs[self.w_var], amsgrad=True
         )
-        self.optimizer_out = tf.keras.optimizers.Adam(
+        self.optimizer_out = keras.optimizers.Adam(
             learning_rate=lrs[self.w_out], amsgrad=True
         )
 
@@ -61,5 +62,5 @@ class Module:
 
     def eval(self, *args, **kwargs) -> None:
         raise NotImplementedError(
-            f"Module [{type(self).__name__}] is missing `train` function implementation"
+            f"Module [{type(self).__name__}] is missing `eval` function implementation"
         )

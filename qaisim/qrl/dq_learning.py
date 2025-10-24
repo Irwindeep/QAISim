@@ -1,13 +1,18 @@
-from typing import Tuple, Deque, Dict, Any
+import numpy as np
+import tensorflow as tf
+import keras
+import gym
+import random
+
+from cirq.ops.pauli_gates import Z
 from qaisim.qrl.module import Module, EpisodeCallable
 from qaisim.qrl.layers import ReUploading, Rescaling
-import cirq, gym, random
-from functools import reduce
-import numpy as np
-from numpy.typing import NDArray
-import tensorflow as tf  # type: ignore[import-untyped]
+
 from collections import deque
 from tqdm import tqdm
+from functools import reduce
+from typing import Tuple, Deque, Dict, Any
+from numpy.typing import NDArray
 
 ReplayMem = Deque[Dict[str, Any]]
 
@@ -34,7 +39,7 @@ class DeepQLearning(Module):
         self.replay_memory: ReplayMem = deque(maxlen=self.max_memory_length)
 
         self.step_updates = step_updates
-        operations = [cirq.Z(qubit) for qubit in self.qubits]
+        operations = [Z(qubit) for qubit in self.qubits]
         self.observables = [
             reduce(lambda x, y: x * y, operations[i : i + 2])
             for i in range(0, len(operations), 2)
@@ -76,7 +81,7 @@ class DeepQLearning(Module):
             tape.watch(self.model.trainable_variables)
             q_values = self.model([states])
             q_values_masked = tf.reduce_sum(tf.multiply(q_values, masks), axis=1)
-            loss = tf.keras.losses.Huber()(target_q_values, q_values_masked)
+            loss = keras.losses.Huber()(target_q_values, q_values_masked)
 
         grads = tape.gradient(loss, self.model.trainable_variables)
         for optimizer, w in zip(
@@ -226,11 +231,11 @@ class DeepQLearning(Module):
                 pbar.set_postfix({"Avg Reward": f"{average_rewards:.2f}"})
                 pbar.update(1)
 
-    def _create_model_policy(self, target: bool) -> tf.keras.Model:
+    def _create_model_policy(self, target: bool) -> keras.Model:
         if self.observables is None:
             raise RuntimeError("Observables not defined")
 
-        input_tensor = tf.keras.Input(
+        input_tensor = keras.Input(
             shape=(self.num_qubits,), dtype=tf.dtypes.float32, name="input"
         )
         re_uploading = ReUploading(
@@ -238,9 +243,9 @@ class DeepQLearning(Module):
         )
         re_uploading_output = re_uploading([input_tensor])
 
-        process = tf.keras.Sequential(
+        process = keras.Sequential(
             [Rescaling(len(self.observables))], name=target * "Target" + "Q-values"
         )
 
         q_values = process(re_uploading_output)
-        return tf.keras.Model(inputs=[input_tensor], outputs=q_values)
+        return keras.Model(inputs=[input_tensor], outputs=q_values)

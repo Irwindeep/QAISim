@@ -1,14 +1,16 @@
-from typing import List, Generator, Union, Tuple
 import simpy
 from qaisim.qtask import QTask
 from qaisim.qnode import QNode, QNodeParams
+
+from typing import List, Generator, Union
+
 
 class Broker:
     def __init__(
         self,
         env: simpy.Environment,
         qnode_params: List[QNodeParams],
-        qtasks: List[QTask] = []
+        qtasks: List[QTask] = [],
     ) -> None:
         self.env = env
 
@@ -26,9 +28,9 @@ class Broker:
 
     def assign(self, qtask: QTask) -> QNode:
         raise NotImplementedError(
-            f"Function to map QTask to QNode is not implemented"
+            f"Function to map QTask to QNode is not implemented. Input {qtask} not assigned."
         )
-    
+
     def task_executor(self, qnode: QNode, qtask: QTask) -> Generator:
         yield self.env.timeout(max(0, qtask.arrival_time - self.env.now))
         with qnode.capacity.request() as request:

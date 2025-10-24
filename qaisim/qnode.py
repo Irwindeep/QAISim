@@ -1,7 +1,10 @@
-from typing import List, Generator, NamedTuple, Tuple
+import simpy
+
 from qaisim.utils import TaskStatus
 from qaisim.qtask import QTask
-import simpy
+
+from typing import List, Generator, NamedTuple, Tuple
+
 
 class QNode:
     def __init__(
@@ -13,7 +16,7 @@ class QNode:
         clops: int,
         q_vol: int,
         capacity: int = 1,
-        qtasks: List[QTask] = []
+        qtasks: List[QTask] = [],
     ) -> None:
         self.env = env
         self.id = id
@@ -21,7 +24,7 @@ class QNode:
         self.eplg = eplg
         self.clops = clops
         self.q_vol = q_vol
-        
+
         self.capacity = simpy.Resource(self.env, capacity)
         self.qtasks = qtasks
 
@@ -32,20 +35,20 @@ class QNode:
 
     def add_qtask(self, qtask: QTask) -> None:
         self.qtasks.append(qtask)
-        qtask.status == TaskStatus.QUEUED
+        qtask.status = TaskStatus.QUEUED
 
     def process_qtask(self, qtask: QTask) -> Generator:
         qtask.status = TaskStatus.RUNNING
         qtask.waiting_time = self.env.now - qtask.arrival_time
 
-        exec_time = (qtask.circuit_layers/self.clops)*qtask.shots
+        exec_time = (qtask.circuit_layers / self.clops) * qtask.shots
         qtask.exec_start_time = self.env.now
 
         yield self.env.timeout(exec_time)
 
         qtask.status = TaskStatus.DONE
         qtask.exec_end_time = self.env.now
-        
+
         self.qtasks.remove(qtask)
         self.total_completed_qtasks += 1
         self.total_running_time += exec_time
@@ -54,6 +57,7 @@ class QNode:
 
     def __repr__(self) -> str:
         return f"QNode(id={self.id}, capacity={self.capacity.capacity})"
+
 
 class QNodeParams(NamedTuple):
     id: int
