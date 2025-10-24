@@ -11,6 +11,7 @@ from qaisim.qrl.layers import ReUploading, Rescaling
 from collections import deque
 from tqdm import tqdm
 from functools import reduce
+from operator import mul
 from typing import Tuple, Deque, Dict, Any
 from numpy.typing import NDArray
 
@@ -41,11 +42,12 @@ class DeepQLearning(Module):
         self.step_updates = step_updates
         operations = [Z(qubit) for qubit in self.qubits]
         self.observables = [
-            reduce(lambda x, y: x * y, operations[i : i + 2])
-            for i in range(0, len(operations), 2)
+            reduce(mul, operations[i : i + 2]) for i in range(0, len(operations), 2)
         ]
         for i in range(self.num_actions - len(self.observables)):
-            self.observables.append(operations[i] * operations[len(operations) - i - 1])
+            self.observables.append(
+                mul(operations[i], operations[len(operations) - i - 1])
+            )
 
         assert len(self.observables) == num_actions
 

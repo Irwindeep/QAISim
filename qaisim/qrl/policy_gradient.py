@@ -3,10 +3,11 @@ import tensorflow as tf
 import keras
 
 from cirq.ops.pauli_gates import Z
+from cirq.ops.pauli_string import PauliString
+
 from qaisim.qrl.module import Module, EpisodeCallable
 from qaisim.qrl.layers import ReUploading, Alternating
 
-from functools import reduce
 from tqdm import tqdm
 from typing import List
 from numpy.typing import NDArray
@@ -24,8 +25,7 @@ class PolicyGradient(Module):
         super().__init__(parametrized_qc, num_actions, gamma, lrs)
 
         self.beta = beta
-        operations = [Z(qubit) for qubit in self.qubits]
-        self.observables = [reduce(lambda x, y: x * y, operations)]
+        self.observables = [PauliString({q: Z for q in self.qubits})]
 
         self.model = self._create_model_policy()
 

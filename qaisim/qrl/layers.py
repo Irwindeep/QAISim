@@ -84,5 +84,5 @@ class Rescaling(keras.layers.Layer):
     def call(self, inputs: tf.Tensor) -> tf.Tensor:
         return tf.math.multiply(
             tf.add(inputs, 1) / 2,
-            tf.repeat(self.w, repeats=np.array(tf.shape(inputs))[0], axis=0),
+            tf.repeat(self.w, repeats=tf.shape(inputs)[0], axis=0),
         )
