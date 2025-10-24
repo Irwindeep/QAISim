@@ -48,10 +48,10 @@ def generate_episodes(model, n_actions, n_episodes, x=None):
         states = [None for _ in range(n_episodes)]
         for i, policy in zip(unfinished_ids, action_probs.numpy()):
             action = np.random.choice(n_actions, p=policy)
-            states[i], reward, done[i], _, _, waiting_time = envs[i].step(action)
+            states[i], reward, done[i], _, x = envs[i].step(action)
             episodes[i]["actions"].append(action)
             episodes[i]["rewards"].append(reward)
-            episodes[i]["waiting_time"].append(waiting_time)
+            episodes[i]["waiting_time"].append(x["waiting_time"])
 
     return episodes
 

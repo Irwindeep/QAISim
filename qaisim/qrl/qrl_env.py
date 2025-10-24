@@ -76,7 +76,7 @@ class QRLEnv(gym.Env):
 
         return self._get_obs(), self._get_info()
 
-    def step(self, action: int) -> Tuple[Any, float, bool, bool, dict, float]:
+    def step(self, action: int) -> Tuple[Any, float, bool, bool, dict]:
         if self.current_qtask is None or self.current_ibm_qtask is None:
             raise RuntimeError("Called `step` on NoneType QTask")
 
@@ -106,8 +106,7 @@ class QRLEnv(gym.Env):
             reward,
             terminated,
             False,
-            {"scheduled_qtask": ibm_qtask},
-            waiting_time,
+            {"scheduled_qtask": ibm_qtask, "waiting_time": waiting_time},
         )
 
     def _assign_qtask_to_qnode(

@@ -36,7 +36,7 @@ class TestQRLEnv(unittest.TestCase):
         qrl_env = QRLEnv(dataset)
 
         state, _ = qrl_env.reset()
-        new_state, reward, terminated, _, qtask, _ = qrl_env.step(0)
+        new_state, reward, terminated, _, qtask = qrl_env.step(0)
 
         assert len(state) == 5
         assert len(new_state) == 5
@@ -60,7 +60,7 @@ class TestQRLEnv(unittest.TestCase):
 
         state, _ = qrl_env.reset()
         for i in range(30):
-            new_state, reward, terminated, _, _, _ = qrl_env.step(i % 4)
+            new_state, reward, terminated, *_ = qrl_env.step(i % 4)
             if i == 15:
                 assert any(new_state["qnode_queued_tasks"] > 0)
 

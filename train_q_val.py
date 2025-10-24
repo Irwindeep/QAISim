@@ -22,14 +22,14 @@ def episode_interaction(model, n_actions, epsilon, state):
     else:
         action = np.random.choice(n_actions)
 
-    next_state, reward, done, _, _, waiting_time = env.step(action)
+    next_state, reward, done, _, x = env.step(action)
     interaction = {
         "state": state_array,
         "action": action,
         "next_state": next_state.copy(),
         "reward": reward,
         "done": np.float32(done),
-        "waiting_time": waiting_time,
+        "waiting_time": x["waiting_time"],
     }
 
     return [interaction]
