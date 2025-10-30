@@ -8,7 +8,7 @@ from typing import List
 
 
 class ParametrizedQC:
-    def __init__(self, num_qubits: int, num_layers: int) -> None:
+    def __init__(self, num_qubits: int, num_layers: int, noisy: bool = False) -> None:
         self.num_qubits = num_qubits
         self.num_layers = num_layers
 
@@ -16,6 +16,7 @@ class ParametrizedQC:
         self.quantum_circuit = Circuit()
 
         self._create_circuit()
+        self.noisy = noisy
 
     def _create_circuit(self) -> None:
         self.phi = sympy.symbols(

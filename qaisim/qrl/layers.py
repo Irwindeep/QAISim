@@ -17,6 +17,7 @@ class ReUploading(keras.layers.Layer):
         observables: List[PauliString],
         activation: str = "linear",
         name: str = "re-uploading_pqc",
+        repetitions: int = 1024,
     ) -> None:
         super(ReUploading, self).__init__(name=name)
 
@@ -35,9 +36,18 @@ class ReUploading(keras.layers.Layer):
 
         self.activation = activation
         self.empty_circuit = tfq.convert_to_tensor([Circuit()])
-        self.computation_layer = tfq.layers.ControlledPQC(
-            parametrized_qc.quantum_circuit, observables
-        )
+
+        if parametrized_qc.noisy:
+            self.computation_layer = tfq.layers.NoisyControlledPQC(
+                parametrized_qc.quantum_circuit,
+                observables,
+                sample_based=True,
+                repetitions=repetitions,
+            )
+        else:
+            self.computation_layer = tfq.layers.ControlledPQC(
+                parametrized_qc.quantum_circuit, observables
+            )
 
     def call(self, inputs: List[tf.Tensor]) -> tf.Tensor:
         batch_dim = tf.gather(tf.shape(inputs[0]), 0)
