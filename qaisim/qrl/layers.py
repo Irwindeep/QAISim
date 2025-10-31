@@ -41,7 +41,7 @@ class ReUploading(keras.layers.Layer):
             self.computation_layer = tfq.layers.NoisyControlledPQC(
                 parametrized_qc.quantum_circuit,
                 observables,
-                sample_based=True,
+                sample_based=False,
                 repetitions=repetitions,
             )
         else:

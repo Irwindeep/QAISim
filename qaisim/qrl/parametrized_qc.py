@@ -1,14 +1,40 @@
 import sympy
+import numpy as np
 
 from cirq.circuits.circuit import Circuit
 from cirq.devices.grid_qubit import GridQubit
+
 from cirq.ops.common_gates import ry, rz, CZ
+from cirq.ops.common_channels import amplitude_damp, depolarize
+from cirq_google.devices.google_noise_properties import GoogleNoiseProperties
 
 from typing import List
+from qaisim.qrl.utils import load_device_noise_properties
+
+
+def get_noisy_circuit(circuit: Circuit, noise_props: GoogleNoiseProperties):
+    t1_values = list(noise_props.t1_ns.values())
+    avg_t1 = np.mean(t1_values) if t1_values else 20000
+    gate_time = 25
+
+    p_reset = 1 - np.exp(-gate_time / avg_t1)
+    p_depol = 0.001
+
+    noisy_ops = []
+    for moment in circuit:
+        for op in moment:
+            noisy_ops.append(op)
+            for qubit in op.qubits:
+                noisy_ops.append(amplitude_damp(p_reset).on(qubit))
+                noisy_ops.append(depolarize(p_depol).on(qubit))
+
+    return Circuit(noisy_ops)
 
 
 class ParametrizedQC:
-    def __init__(self, num_qubits: int, num_layers: int, noisy: bool = False) -> None:
+    def __init__(
+        self, num_qubits: int, num_layers: int, processor_id: str | None = None
+    ) -> None:
         self.num_qubits = num_qubits
         self.num_layers = num_layers
 
@@ -16,7 +42,28 @@ class ParametrizedQC:
         self.quantum_circuit = Circuit()
 
         self._create_circuit()
-        self.noisy = noisy
+
+        self.noisy = False
+        if processor_id is not None:
+            try:
+                noise_props = load_device_noise_properties(processor_id)
+                device_qubits = list(noise_props.t1_ns.keys())
+                logical_qubits = sorted(self.quantum_circuit.all_qubits())
+
+                mapping = {lq: dq for lq, dq in zip(logical_qubits, device_qubits)}
+                new_ops = [
+                    op.with_qubits(*[mapping[q] for q in op.qubits])
+                    for op in self.quantum_circuit.all_operations()
+                ]
+
+                qc = Circuit(new_ops)
+                self.quantum_circuit = get_noisy_circuit(qc, noise_props)
+                self.qubits = list(self.quantum_circuit.all_qubits())
+
+                self.noisy = True
+            except Exception as e:
+                print(f"Error loading Noise Model: {e}")
+                print("Continuing without noise")
 
     def _create_circuit(self) -> None:
         self.phi = sympy.symbols(
@@ -47,7 +94,7 @@ class ParametrizedQC:
 
     def _entangling_layer(self) -> None:
         cz_gates = [CZ(q0, q1) for q0, q1 in zip(self.qubits, self.qubits[1:])]
-        if self.num_qubits != 2:
+        if self.num_qubits > 2:
             cz_gates.append(CZ(self.qubits[0], self.qubits[-1]))
 
         self.quantum_circuit += Circuit(cz_gates)

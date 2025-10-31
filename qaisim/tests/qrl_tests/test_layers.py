@@ -30,7 +30,7 @@ class TestLayers(unittest.TestCase):
     def test_reuploading_layer_noisy(self):
         num_qubits, num_layers = 4, 2
         parametrized_qc = ParametrizedQC(
-            num_qubits=num_qubits, num_layers=num_layers, noisy=True
+            num_qubits=num_qubits, num_layers=num_layers, processor_id="rainbow"
         )
 
         ops = [cirq.Z(q) for q in parametrized_qc.qubits]
