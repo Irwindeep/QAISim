@@ -4,6 +4,8 @@ import random
 
 from typing import Dict, Tuple, NamedTuple
 
+random.seed(12)
+
 
 class TaskStatus(enum.Enum):
     INITIALIZING = "QTask is being initialized"

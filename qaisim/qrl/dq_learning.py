@@ -15,6 +15,7 @@ from operator import mul
 from typing import Tuple, Deque, Dict, Any
 from numpy.typing import NDArray
 
+random.seed(12)
 ReplayMem = Deque[Dict[str, Any]]
 
 
@@ -130,8 +131,8 @@ class DeepQLearning(Module):
                         batch = random.sample(self.replay_memory, k=batch_size)
 
                     states = np.array([x["state"] for x in batch], dtype=np.float32)
-                    actions = np.array([x["actions"] for x in batch], dtype=np.int32)
-                    rewards = np.array([x["rewards"] for x in batch], dtype=np.float32)
+                    actions = np.array([x["action"] for x in batch], dtype=np.int32)
+                    rewards = np.array([x["reward"] for x in batch], dtype=np.float32)
                     next_states = np.array(
                         [self._create_state(x["next_state"]) for x in batch]
                     )
