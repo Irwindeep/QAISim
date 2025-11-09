@@ -230,11 +230,11 @@ def train_q_val(
                 else:
                     batch = random.sample(replay_memory, k=batch_size)
 
-                states = np.array([x["state"] for x in batch], dtype=np.float32)
-                actions = np.array([x["action"] for x in batch], dtype=np.int32)
-                rewards = np.array([x["reward"] for x in batch], dtype=np.float32)
-                next_states = np.array([get_state(x["next_state"]) for x in batch])
-                done = np.array([x["done"] for x in batch], dtype=np.float32)
+                states = np.asarray([x["state"] for x in batch], dtype=np.float32)
+                actions = np.asarray([x["action"] for x in batch], dtype=np.int32)
+                rewards = np.asarray([x["reward"] for x in batch], dtype=np.float32)
+                next_states = np.asarray([get_state(x["next_state"]) for x in batch])
+                done = np.asarray([x["done"] for x in batch], dtype=np.float32)
 
                 q_learning_update(
                     (model, model_target),
@@ -291,6 +291,7 @@ def policy(args: argparse.Namespace) -> None:
     plt.xlabel("Episode")
     plt.ylabel("Reward")
     plt.title("Classical Policy Gradient Training", fontweight="bold")
+    plt.grid()
     plt.savefig(os.path.join(save_dir, "classical_training.pdf"))
 
     model.save_weights(os.path.join(save_dir, "classical_model.h5"))
@@ -301,7 +302,9 @@ def dql(args: argparse.Namespace) -> None:
 
     num_actions = 5
     model = MLP(num_actions=num_actions, num_layers=args.num_layers, raw_scores=True)
-    model_target = MLP(num_actions=5, num_layers=args.num_layers, raw_scores=True)
+    model_target = MLP(
+        num_actions=num_actions, num_layers=args.num_layers, raw_scores=True
+    )
     optim = tf.keras.optimizers.Adam(learning_rate=args.lr)
 
     episode_interaction, env = get_episode_interaction(
@@ -327,6 +330,7 @@ def dql(args: argparse.Namespace) -> None:
     plt.xlabel("Episode")
     plt.ylabel("Reward")
     plt.title("Classical Q-Value Training", fontweight="bold")
+    plt.grid()
     plt.savefig(os.path.join(save_dir, "classical_training.pdf"))
 
     model.save_weights(os.path.join(save_dir, "classical_model.h5"))
@@ -341,6 +345,7 @@ def main(args: argparse.Namespace) -> None:
     print("==========================================\n")
 
     policy(args)
+    plt.clf()
     dql(args)
 
 
