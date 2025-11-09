@@ -142,10 +142,8 @@ def main(args: argparse.Namespace) -> None:
     plt.xlabel("Episode")
     plt.ylabel("Length")
     plt.title("Episode Length - Policy", fontweight="bold")
-    plt.savefig("./results/policy/episode_length.pdf")
     plt.savefig(os.path.join(save_dir, "episode_length.pdf"))
 
-    policy_grad_agent.model.save_weights("./results/policy/model.h5")
     policy_grad_agent.model.save_weights(os.path.join(save_dir, "model.h5"))
 
 
