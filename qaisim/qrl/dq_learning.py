@@ -45,6 +45,10 @@ class DeepQLearning(Module):
         self.observables = [
             reduce(mul, operations[i : i + 2]) for i in range(0, len(operations), 2)
         ]
+
+        if len(self.observables) > num_actions:
+            self.observables = self.observables[:num_actions]
+
         for i in range(self.num_actions - len(self.observables)):
             self.observables.append(
                 mul(operations[i], operations[len(operations) - i - 1])
