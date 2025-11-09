@@ -1,9 +1,9 @@
 import numpy as np
-import gym
+import gymnasium as gym
 import simpy
 
-from gym import spaces
-from qaisim import QTask, QNode
+from gymnasium import spaces
+from qaisim import QTask, QNode, QNodeParams
 from qaisim.utils import Dataset
 from qaisim.broker import Broker
 from qaisim.qrl.env_qnodes import ibm_qnodes
@@ -25,6 +25,7 @@ class QRLEnv(gym.Env):
     def __init__(
         self,
         dataset: Union[str, Dataset],
+        env_qnodes: Dict[str, QNodeParams] = ibm_qnodes,
     ) -> None:
         super().__init__()
 
@@ -37,8 +38,10 @@ class QRLEnv(gym.Env):
             self.dataset = dataset
 
         self.sim_env = simpy.Environment()
+        self.env_qnodes = env_qnodes
         self.broker = Broker(
-            env=self.sim_env, qnode_params=[param for _, param in ibm_qnodes.items()]
+            env=self.sim_env,
+            qnode_params=[param for _, param in self.env_qnodes.items()],
         )
 
         self.qnodes = self.broker.qnodes
@@ -63,12 +66,13 @@ class QRLEnv(gym.Env):
         self.current_qtask: Optional[QTask] = None
         self.current_ibm_qtask: Optional[Dict[int, QTask]] = None
 
-    def reset(self, *, seed=None, return_info=False, options=None) -> Any:
-        super().reset(seed=seed, return_info=return_info, options=options)
+    def reset(self, *, seed=None, options=None) -> Any:
+        super().reset(seed=seed, options=options)
 
         self.sim_env = simpy.Environment()
         self.broker = Broker(
-            env=self.sim_env, qnode_params=[param for _, param in ibm_qnodes.items()]
+            env=self.sim_env,
+            qnode_params=[param for _, param in self.env_qnodes.items()],
         )
 
         self.qnodes = self.broker.qnodes
@@ -81,8 +85,11 @@ class QRLEnv(gym.Env):
             raise RuntimeError("Called `step` on NoneType QTask")
 
         ibm_qtask = self.current_qtask
-        if self.qnodes[action].num_qubits in [127, 133, 156]:
-            ibm_qtask = self.current_ibm_qtask[self.qnodes[action].num_qubits]
+        num_qubits = self.qnodes[action].num_qubits
+
+        if num_qubits in [val.num_qubits for val in self.env_qnodes.values()]:
+            if num_qubits in self.current_ibm_qtask:
+                ibm_qtask = self.current_ibm_qtask[self.qnodes[action].num_qubits]
 
         reward = self._assign_qtask_to_qnode(
             self.current_qtask, self.qnodes[action], ibm_qtask
