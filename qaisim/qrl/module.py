@@ -64,3 +64,14 @@ class Module:
         raise NotImplementedError(
             f"Module [{type(self).__name__}] is missing `eval` function implementation"
         )
+
+    def _create_state(self, state: Dict[str, Any]) -> NDArray[np.float32]:
+        return np.concatenate(
+            [
+                state["qnode_queued_tasks"],
+                state["qtask_arrival_time"],
+                state["qtask_num_qubits"],
+                state["qtask_circuit_layers"],
+            ],
+            dtype=np.float32,
+        )

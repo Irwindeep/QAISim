@@ -8,7 +8,7 @@ from cirq.ops.pauli_string import PauliString
 from qaisim.qrl.module import Module, EpisodeCallable
 from qaisim.qrl.layers import ReUploading, Alternating
 
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from typing import List
 from numpy.typing import NDArray
 
@@ -59,7 +59,6 @@ class PolicyGradient(Module):
         returns = tf.convert_to_tensor(returns_np)
 
         with tf.GradientTape() as tape:
-            tape.watch(self.model.trainable_variables)
             logits = self.model(states)
             p_action = tf.gather_nd(logits, actions)
             log_probs = tf.math.log(p_action)
@@ -81,44 +80,37 @@ class PolicyGradient(Module):
     ) -> None:
         if not self.model:
             raise RuntimeError("Model not defined")
-        with tqdm(total=num_episodes // batch_size, colour="cyan") as pbar:
-            for batch in range(num_episodes // batch_size):
-                pbar.set_description(
-                    f"Batch [{batch + 1}/{num_episodes // batch_size}]"
-                )
-                episodes = generate_episodes(
-                    self.model, self.num_actions, batch_size, None
-                )
 
-                states = np.concatenate(
-                    [ep["states"] for ep in episodes], dtype=np.float32
-                )
-                actions = np.concatenate(
-                    [ep["actions"] for ep in episodes], dtype=np.int32
-                )
-                rewards = [ep["rewards"] for ep in episodes]
-                returns = np.concatenate(
-                    [
-                        self.compute_returns(episode_rewards)
-                        for episode_rewards in rewards
-                    ],
-                    dtype=np.float32,
-                )
+        pbar = tqdm(total=num_episodes // batch_size)
+        for batch in range(num_episodes // batch_size):
+            pbar.set_description(f"Batch [{batch + 1}/{num_episodes // batch_size}]")
+            episodes = generate_episodes(self.model, self.num_actions, batch_size, None)
 
-                id_action_pairs = np.array(
-                    [[i, a] for i, a in enumerate(actions)], dtype=np.int32
-                )
-                for episode_rewards in rewards:
-                    self.episode_reward_history.append(np.sum(episode_rewards))
-                    self.episode_length.append(len(episode_rewards))
+            states = np.concatenate([ep["states"] for ep in episodes], dtype=np.float32)
+            actions = np.concatenate([ep["actions"] for ep in episodes], dtype=np.int32)
+            rewards = [ep["rewards"] for ep in episodes]
+            returns = np.concatenate(
+                [self.compute_returns(episode_rewards) for episode_rewards in rewards],
+                dtype=np.float32,
+            )
 
-                average_rewards = np.mean(self.episode_reward_history[-batch_size:])
-                pbar.set_postfix({"Avg Reward": f"{average_rewards:.2f}"})
-                pbar.update(1)
+            id_action_pairs = np.array(
+                [[i, a] for i, a in enumerate(actions)], dtype=np.int32
+            )
+            for episode_rewards in rewards:
+                self.episode_reward_history.append(np.sum(episode_rewards))
+                self.episode_length.append(len(episode_rewards))
 
-                if average_rewards >= threshold_reward:
-                    break
-                self.reinforcement_update(states, id_action_pairs, returns, batch_size)
+            self.reinforcement_update(states, id_action_pairs, returns, batch_size)
+
+            average_rewards = np.mean(self.episode_reward_history[-batch_size:])
+            pbar.set_postfix({"Avg Reward": f"{average_rewards:.2f}"})
+            pbar.update(1)
+
+            if average_rewards >= threshold_reward:
+                break
+
+        pbar.close()
 
     def eval(
         self,
@@ -128,28 +120,25 @@ class PolicyGradient(Module):
     ) -> None:
         if not self.model:
             raise RuntimeError("Model not defined")
-        with tqdm(total=num_episodes // batch_size, colour="cyan") as pbar:
-            for batch in range(num_episodes // batch_size):
-                pbar.set_description(
-                    f"Batch [{batch + 1}/{num_episodes // batch_size}]"
-                )
-                episodes = generate_episodes(
-                    self.model, self.num_actions, batch_size, None
-                )
 
-                rewards = [ep["rewards"] for ep in episodes]
-                waiting_times = [ep["waiting_time"] for ep in episodes]
+        pbar = tqdm(total=num_episodes // batch_size)
+        for batch in range(num_episodes // batch_size):
+            pbar.set_description(f"Batch [{batch + 1}/{num_episodes // batch_size}]")
+            episodes = generate_episodes(self.model, self.num_actions, batch_size, None)
 
-                for i, episode_rewards in enumerate(rewards):
-                    self.eval_episode_reward_history.append(np.sum(episode_rewards))
-                    self.eval_episode_length.append(len(episode_rewards))
-                    self.eval_waiting_time.append(np.sum(waiting_times[i]))
+            rewards = [ep["rewards"] for ep in episodes]
+            waiting_times = [ep["waiting_time"] for ep in episodes]
 
-                average_rewards = np.mean(
-                    self.eval_episode_reward_history[-batch_size:]
-                )
-                pbar.set_postfix({"Avg Reward": f"{average_rewards:.2f}"})
-                pbar.update(1)
+            for i, episode_rewards in enumerate(rewards):
+                self.eval_episode_reward_history.append(np.sum(episode_rewards))
+                self.eval_episode_length.append(len(episode_rewards))
+                self.eval_waiting_time.append(np.sum(waiting_times[i]))
+
+            average_rewards = np.mean(self.eval_episode_reward_history[-batch_size:])
+            pbar.set_postfix({"Avg Reward": f"{average_rewards:.2f}"})
+            pbar.update(1)
+
+        pbar.close()
 
     def _create_model_policy(self) -> keras.Model:
         if self.observables is None:

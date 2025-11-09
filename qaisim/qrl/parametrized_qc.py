@@ -9,26 +9,35 @@ from cirq.ops.common_channels import amplitude_damp, depolarize
 from cirq_google.devices.google_noise_properties import GoogleNoiseProperties
 
 from typing import List
+from collections import Counter
 from qaisim.qrl.utils import load_device_noise_properties
 
 
-def get_noisy_circuit(circuit: Circuit, noise_props: GoogleNoiseProperties):
+def get_noisy_circuit(
+    circuit: Circuit,
+    noise_props: GoogleNoiseProperties,
+    gate_time: float = 25,
+    p_depol: float = 0.001,
+):
     t1_values = list(noise_props.t1_ns.values())
-    avg_t1 = np.mean(t1_values) if t1_values else 20000
-    gate_time = 25
+    avg_t1 = float(np.mean(t1_values)) if t1_values else 20000.0
 
-    p_reset = 1 - np.exp(-gate_time / avg_t1)
-    p_depol = 0.001
-
-    noisy_ops = []
+    counts = Counter()
     for moment in circuit:
         for op in moment:
-            noisy_ops.append(op)
-            for qubit in op.qubits:
-                noisy_ops.append(amplitude_damp(p_reset).on(qubit))
-                noisy_ops.append(depolarize(p_depol).on(qubit))
+            for q in op.qubits:
+                counts[q] += 1
 
-    return Circuit(noisy_ops)
+    noise_ops = []
+    for q, n_ops in counts.items():
+        total_time = n_ops * gate_time
+        p_reset_total = 1 - np.exp(-total_time / avg_t1)
+        p_depol_total = 1 - (1 - p_depol) ** n_ops
+
+        noise_ops.append(amplitude_damp(p_reset_total).on(q))
+        noise_ops.append(depolarize(p_depol_total).on(q))
+
+    return Circuit(list(circuit.all_operations()) + noise_ops)
 
 
 class ParametrizedQC:

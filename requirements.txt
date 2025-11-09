@@ -1,4 +1,5 @@
 simpy
+scikit-learn
 mypy
 pytest
 qiskit

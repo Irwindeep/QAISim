@@ -9,7 +9,7 @@ from qaisim.qrl.module import Module, EpisodeCallable
 from qaisim.qrl.layers import ReUploading, Rescaling
 
 from collections import deque
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from functools import reduce
 from operator import mul
 from typing import Tuple, Deque, Dict, Any
@@ -104,86 +104,59 @@ class DeepQLearning(Module):
             raise RuntimeError("Model not defined")
 
         step_count = 0
-        with tqdm(total=num_episodes, colour="cyan") as pbar:
-            for episode_count in range(num_episodes):
-                pbar.set_description(f"Episode [{episode_count + 1}/{num_episodes}]")
-                episode_reward, episode_length = 0.0, 0
-                state = env.reset()[0]
+        pbar = tqdm(total=num_episodes)
+        for episode_count in range(num_episodes):
+            pbar.set_description(f"Episode [{episode_count + 1}/{num_episodes}]")
+            episode_reward, episode_length = 0.0, 0
+            state = env.reset()[0]
 
-                while True:
-                    state = np.concatenate(
-                        [
-                            state["qnode_queued_tasks"],
-                            state["qtask_arrival_time"],
-                            state["qtask_num_qubits"],
-                            state["qtask_circuit_layers"],
-                        ]
+            while True:
+                state = self._create_state(state)
+                interaction = generate_episode(
+                    self.model, self.num_actions, self.epsilon, state
+                )[0]
+                if not interaction["done"]:
+                    self.replay_memory.append(interaction)
+
+                state = interaction["next_state"]
+                episode_reward += interaction["reward"]
+                step_count += 1
+                episode_length += 1
+
+                if step_count % self.step_updates[0] == 0:
+                    if batch_size > len(self.replay_memory):
+                        batch = list(self.replay_memory)
+                    else:
+                        batch = random.sample(self.replay_memory, k=batch_size)
+
+                    states = np.array([x["state"] for x in batch], dtype=np.float32)
+                    actions = np.array([x["actions"] for x in batch], dtype=np.int32)
+                    rewards = np.array([x["rewards"] for x in batch], dtype=np.float32)
+                    next_states = np.array(
+                        [self._create_state(x["next_state"]) for x in batch]
                     )
+                    done = np.array([x["done"] for x in batch], dtype=np.float32)
+                    self.q_learning_update(states, actions, rewards, next_states, done)
 
-                    interaction = generate_episode(
-                        self.model, self.num_actions, self.epsilon, state
-                    )[0]
-                    if not interaction["done"]:
-                        self.replay_memory.append(interaction)
+                if step_count % self.step_updates[1] == 0:
+                    self.model_target.set_weights(self.model.get_weights())
 
-                    state = interaction["next_state"]
-                    episode_reward += interaction["reward"]
-                    step_count += 1
-                    episode_length += 1
-
-                    if step_count % self.step_updates[0] == 0:
-                        if batch_size > len(self.replay_memory):
-                            training_batch = list(self.replay_memory)
-                        else:
-                            training_batch = random.sample(
-                                self.replay_memory, k=batch_size
-                            )
-                        self.q_learning_update(
-                            np.asarray(
-                                [x["state"] for x in training_batch], dtype=np.float32
-                            ),
-                            np.asarray(
-                                [x["action"] for x in training_batch], dtype=np.int32
-                            ),
-                            np.asarray(
-                                [x["reward"] for x in training_batch], dtype=np.float32
-                            ),
-                            np.asarray(
-                                [
-                                    np.concatenate(
-                                        [
-                                            x["next_state"]["qnode_queued_tasks"],
-                                            x["next_state"]["qtask_arrival_time"],
-                                            x["next_state"]["qtask_num_qubits"],
-                                            x["next_state"]["qtask_circuit_layers"],
-                                        ]
-                                    )
-                                    for x in training_batch
-                                ],
-                                dtype=np.float32,
-                            ),
-                            np.asarray(
-                                [x["done"] for x in training_batch], dtype=np.float32
-                            ),
-                        )
-
-                    if step_count % self.step_updates[1] == 0:
-                        self.model_target.set_weights(self.model.get_weights())
-
-                    if interaction["done"]:
-                        break
-
-                self.epsilon = max(self.epsilon * self.decay_epsilon, self.epsilon_min)
-                self.episode_reward_history.append(episode_reward)
-                self.episode_length.append(episode_length)
-
-                average_rewards = np.mean(self.episode_reward_history[-batch_size:])
-
-                pbar.set_postfix({"Avg Reward": f"{average_rewards:.2f}"})
-                pbar.update(1)
-
-                if average_rewards >= threshold_reward:
+                if interaction["done"]:
                     break
+
+            self.epsilon = max(self.epsilon * self.decay_epsilon, self.epsilon_min)
+            self.episode_reward_history.append(episode_reward)
+            self.episode_length.append(episode_length)
+
+            average_rewards = np.mean(self.episode_reward_history[-batch_size:])
+
+            pbar.set_postfix({"Avg Reward": f"{average_rewards:.2f}"})
+            pbar.update(1)
+
+            if average_rewards >= threshold_reward:
+                break
+
+        pbar.close()
 
     def eval(
         self,
@@ -194,44 +167,37 @@ class DeepQLearning(Module):
     ) -> None:
         if not self.model:
             raise RuntimeError("Model not defined")
-        with tqdm(total=num_episodes, colour="cyan") as pbar:
-            for episode_count in range(num_episodes):
-                pbar.set_description(f"Episode [{episode_count + 1}/{num_episodes}]")
-                episode_reward, episode_wt, episode_length = 0.0, 0.0, 0
-                state = env.reset()[0]
 
-                while True:
-                    state = np.concatenate(
-                        [
-                            state["qnode_queued_tasks"],
-                            state["qtask_arrival_time"],
-                            state["qtask_num_qubits"],
-                            state["qtask_circuit_layers"],
-                        ]
-                    )
+        pbar = tqdm(total=num_episodes)
+        for episode_count in range(num_episodes):
+            pbar.set_description(f"Episode [{episode_count + 1}/{num_episodes}]")
+            episode_reward, episode_wt, episode_length = 0.0, 0.0, 0
+            state = env.reset()[0]
 
-                    interaction = generate_episode(
-                        self.model, self.num_actions, self.epsilon, state
-                    )[0]
+            while True:
+                state = self._create_state(state)
+                interaction = generate_episode(
+                    self.model, self.num_actions, self.epsilon, state
+                )[0]
 
-                    state = interaction["next_state"]
-                    episode_reward += interaction["reward"]
-                    episode_length += 1
-                    episode_wt += interaction["waiting_time"]
+                state = interaction["next_state"]
+                episode_reward += interaction["reward"]
+                episode_length += 1
+                episode_wt += interaction["waiting_time"]
 
-                    if interaction["done"]:
-                        break
+                if interaction["done"]:
+                    break
 
-                self.eval_episode_reward_history.append(episode_reward)
-                self.eval_episode_length.append(episode_length)
-                self.eval_waiting_time.append(episode_wt)
+            self.eval_episode_reward_history.append(episode_reward)
+            self.eval_episode_length.append(episode_length)
+            self.eval_waiting_time.append(episode_wt)
 
-                average_rewards = np.mean(
-                    self.eval_episode_reward_history[-batch_size:]
-                )
+            average_rewards = np.mean(self.eval_episode_reward_history[-batch_size:])
 
-                pbar.set_postfix({"Avg Reward": f"{average_rewards:.2f}"})
-                pbar.update(1)
+            pbar.set_postfix({"Avg Reward": f"{average_rewards:.2f}"})
+            pbar.update(1)
+
+        pbar.close()
 
     def _create_model_policy(self, target: bool) -> keras.Model:
         if self.observables is None:
