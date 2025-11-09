@@ -29,7 +29,10 @@ def get_episode_gen(args: argparse.Namespace) -> EpisodeCallable:
     env_qnodes = ibm_qnodes if args.backend == "pure" else qnodes_for_noisy_exp
 
     def generate_episodes(
-        model: tf.keras.Model, n_actions: int, n_episodes: int | float, s: Any = None
+        model: tf.keras.Model,
+        n_actions: int,
+        n_episodes: int | float,
+        s: Any = None,
     ) -> EpisodicOutcome:
         if not isinstance(n_episodes, int):
             raise RuntimeError(
@@ -93,7 +96,8 @@ def train_policy(args: argparse.Namespace) -> Module:
 
     generate_episodes = get_episode_gen(args)
 
-    paramatrized_qc = ParametrizedQC(num_qubits, num_layers)
+    processor_id = None if args.backend == "pure" else "weber"
+    paramatrized_qc = ParametrizedQC(num_qubits, num_layers, processor_id=processor_id)
     policy_gradient_agent = PolicyGradient(paramatrized_qc, num_actions, lrs=lrs)
 
     policy_gradient_agent.train(
@@ -134,6 +138,7 @@ def main(args: argparse.Namespace) -> None:
     plt.xlabel("Episode")
     plt.ylabel("Reward")
     plt.title("Policy Gradient Training", fontweight="bold")
+    plt.grid()
     plt.savefig(os.path.join(save_dir, "policy_training.pdf"))
 
     plt.clf()
@@ -142,6 +147,7 @@ def main(args: argparse.Namespace) -> None:
     plt.xlabel("Episode")
     plt.ylabel("Length")
     plt.title("Episode Length - Policy", fontweight="bold")
+    plt.grid()
     plt.savefig(os.path.join(save_dir, "episode_length.pdf"))
 
     policy_grad_agent.model.save_weights(os.path.join(save_dir, "model.h5"))
