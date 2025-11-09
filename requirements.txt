@@ -5,7 +5,7 @@ pytest
 qiskit
 numpy
 pandas
-gym==0.25.2
+gymnasium
 cirq
 tensorflow==2.15.0
 types-tensorflow

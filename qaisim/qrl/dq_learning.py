@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import keras
-import gym
+import gymnasium as gym
 import random
 
 from cirq.ops.pauli_gates import Z
