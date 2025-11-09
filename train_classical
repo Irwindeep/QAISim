@@ -1,25 +1,34 @@
-from collections import deque
-import random
-import gym
+#!/usr/bin/env python
+
+import os
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+import argparse
 import numpy as np
 import tensorflow as tf
+import random
 import matplotlib.pyplot as plt
 
-from numpy.typing import NDArray
-from typing import Callable, List, Tuple
+from collections import deque
+from qaisim import get_episode_gen, get_episode_interaction
 
 from tqdm.auto import tqdm
-from train_policy import generate_episodes
-from train_q_val import episode_interaction, env
+from numpy.typing import NDArray
+from typing import Callable, Dict, List, Tuple
 
-plt.style.use("seaborn-v0_8-whitegrid")
-plt.rc("font", family="serif")
+from qaisim.qrl.qrl_env import QRLEnv
+
+plt.rcParams["font.family"] = "STIXGeneral"
+tf.random.set_seed(12)
+random.seed(12)
 
 
 class MLP(tf.keras.Model):
     def __init__(
         self,
         num_actions: int,
+        num_layers: int,
         num_hidden_units: int = 64,
         raw_scores: bool = False,
         gamma: float = 0.99,
@@ -30,20 +39,22 @@ class MLP(tf.keras.Model):
 
         self.linear = tf.keras.Sequential(
             layers=[
-                tf.keras.layers.Dense(num_hidden_units, activation="relu"),
-                tf.keras.layers.Dense(num_hidden_units, activation="relu"),
-                tf.keras.layers.Dense(num_hidden_units, activation="relu"),
+                tf.keras.layers.Dense(num_hidden_units, activation="relu")
+                for _ in range(num_layers)
             ]
         )
         self.out_proj = tf.keras.layers.Dense(num_actions)
 
-    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:  # pyright: ignore
         if isinstance(inputs, list):
             inputs = inputs[0]
+
         output = self.linear(inputs)
         output = self.out_proj(output)
+
         if not self.raw_scores:
             output = tf.nn.softmax(output)
+
         return output
 
     def _compute_returns(
@@ -51,6 +62,7 @@ class MLP(tf.keras.Model):
     ) -> NDArray[np.float64]:
         returns: List[float] = []
         discounted_sum = 0.0
+
         for reward in episode_rewards[::-1]:
             discounted_sum = reward + self.gamma * discounted_sum
             returns.insert(0, discounted_sum)
@@ -63,7 +75,7 @@ class MLP(tf.keras.Model):
 
 @tf.function(reduce_retracing=True)
 def reinforcement_update(
-    model: MLP,
+    model: tf.keras.Model,
     states_np: NDArray[np.float32],
     actions_np: NDArray[np.int32],
     returns_np: NDArray[np.float32],
@@ -94,9 +106,11 @@ def train_policy(
     batch_size: int = 10,
 ) -> List[float]:
     episode_reward_history = []
-    pbar = tqdm(total=num_episodes // batch_size, colour="cyan")
+    pbar = tqdm(total=num_episodes // batch_size)
     for batch in range(num_episodes // batch_size):
-        pbar.set_description(f"Batch [{batch + 1}/{num_episodes // batch_size}]")
+        pbar.set_description(
+            f"Policy - Batch [{batch + 1}/{num_episodes // batch_size}]"
+        )
         episodes = generate_episodes(model, num_actions, batch_size, None)
 
         states = np.concatenate([ep["states"] for ep in episodes], dtype=np.float32)
@@ -119,6 +133,7 @@ def train_policy(
         reinforcement_update(model, states, id_action_pairs, returns, batch_size, optim)
         pbar.update(1)
 
+    pbar.close()
     return episode_reward_history
 
 
@@ -158,11 +173,23 @@ def q_learning_update(
     optim.apply_gradients(zip(grads, model.trainable_variables))
 
 
+def get_state(state: Dict[str, NDArray[np.float32]]) -> NDArray[np.float32]:
+    return np.concatenate(
+        [
+            state["qnode_queued_tasks"],
+            state["qtask_arrival_time"],
+            state["qtask_num_qubits"],
+            state["qtask_circuit_layers"],
+        ],
+        dtype=np.float32,
+    )
+
+
 def train_q_val(
     models: Tuple[tf.keras.Model, ...],
     optim: tf.keras.optimizers.Optimizer,
     num_actions: int,
-    env: gym.Env,
+    env: QRLEnv,
     episode_interaction: Callable,
     num_episodes: int,
     batch_size: int = 16,
@@ -179,22 +206,15 @@ def train_q_val(
 
     replay_memory = deque(maxlen=10000)
     step_count, episode_reward_history = 0, []
-    pbar = tqdm(total=num_episodes, colour="cyan")
+    pbar = tqdm(total=num_episodes)
 
     for episode_count in range(num_episodes):
-        pbar.set_description(f"Episode [{episode_count + 1}/{num_episodes}]")
+        pbar.set_description(f"DQL - Episode [{episode_count + 1}/{num_episodes}]")
         episode_reward = 0.0
         state = env.reset()[0]
 
         while True:
-            state = np.concatenate(
-                [
-                    state["qnode_queued_tasks"],
-                    state["qtask_arrival_time"],
-                    state["qtask_num_qubits"],
-                    state["qtask_circuit_layers"],
-                ]
-            )
+            state = get_state(state)
 
             interaction = episode_interaction(model, num_actions, epsilon, state)[0]
             if not interaction["done"]:
@@ -206,30 +226,24 @@ def train_q_val(
 
             if step_count % step_updates[0] == 0:
                 if batch_size > len(replay_memory):
-                    training_batch = list(replay_memory)
+                    batch = list(replay_memory)
                 else:
-                    training_batch = random.sample(replay_memory, k=batch_size)
+                    batch = random.sample(replay_memory, k=batch_size)
+
+                states = np.array([x["state"] for x in batch], dtype=np.float32)
+                actions = np.array([x["action"] for x in batch], dtype=np.int32)
+                rewards = np.array([x["reward"] for x in batch], dtype=np.float32)
+                next_states = np.array([get_state(x["next_state"]) for x in batch])
+                done = np.array([x["done"] for x in batch], dtype=np.float32)
+
                 q_learning_update(
                     (model, model_target),
                     num_actions,
-                    np.asarray([x["state"] for x in training_batch], dtype=np.float32),
-                    np.asarray([x["action"] for x in training_batch], dtype=np.int32),
-                    np.asarray([x["reward"] for x in training_batch], dtype=np.float32),
-                    np.asarray(
-                        [
-                            np.concatenate(
-                                [
-                                    x["next_state"]["qnode_queued_tasks"],
-                                    x["next_state"]["qtask_arrival_time"],
-                                    x["next_state"]["qtask_num_qubits"],
-                                    x["next_state"]["qtask_circuit_layers"],
-                                ]
-                            )
-                            for x in training_batch
-                        ],
-                        dtype=np.float32,
-                    ),
-                    np.asarray([x["done"] for x in training_batch], dtype=np.float32),
+                    states,
+                    actions,
+                    rewards,
+                    next_states,
+                    done,
                     optim,
                 )
 
@@ -250,55 +264,102 @@ def train_q_val(
     return episode_reward_history
 
 
-def main():
-    model = MLP(num_actions=5, raw_scores=False)
-    optim = tf.keras.optimizers.Adam(learning_rate=1e-3)
-    episode_reward_history = train_policy(
-        model, optim, generate_episodes, num_actions=5
-    )
-    smoothed_rewards = np.convolve(
-        episode_reward_history, np.ones(20) / 20, mode="valid"
-    )
+def policy(args: argparse.Namespace) -> None:
+    save_dir = "results/policy"
 
-    plt.plot(episode_reward_history, alpha=0.3)
+    num_actions = 5
+    model = MLP(num_actions=num_actions, num_layers=args.num_layers, raw_scores=False)
+    optim = tf.keras.optimizers.Adam(learning_rate=args.lr)
+
+    generate_episodes = get_episode_gen(
+        dataset_file="data/qtasks_train.csv", backend="pure", **vars(args)
+    )
+    reward_hist = train_policy(
+        model,
+        optim,
+        generate_episodes,
+        num_actions=num_actions,
+        num_episodes=args.num_episodes,
+        batch_size=args.batch_size,
+    )
+    smoothed_rewards = np.convolve(reward_hist, np.ones(20) / 20, mode="valid")
+
+    plt.plot(reward_hist, alpha=0.3)
     plt.plot(
         range(len(smoothed_rewards)), smoothed_rewards, color="blue", linewidth=1.5
     )
     plt.xlabel("Episode")
     plt.ylabel("Reward")
     plt.title("Classical Policy Gradient Training", fontweight="bold")
-    plt.savefig("./results/policy/classical_training.pdf")
+    plt.savefig(os.path.join(save_dir, "classical_training.pdf"))
 
-    model.save_weights("./results/policy/classical_model.h5")
+    model.save_weights(os.path.join(save_dir, "classical_model.h5"))
 
-    model = MLP(num_actions=5, raw_scores=True)
-    model_target = MLP(num_actions=5, raw_scores=True)
 
-    optim = tf.keras.optimizers.Adam(learning_rate=1e-3)
-    episode_reward_history = train_q_val(
+def dql(args: argparse.Namespace) -> None:
+    save_dir = "results/dq_learning"
+
+    num_actions = 5
+    model = MLP(num_actions=num_actions, num_layers=args.num_layers, raw_scores=True)
+    model_target = MLP(num_actions=5, num_layers=args.num_layers, raw_scores=True)
+    optim = tf.keras.optimizers.Adam(learning_rate=args.lr)
+
+    episode_interaction, env = get_episode_interaction(
+        dataset_file="data/qtasks_train.csv", backend="pure", **vars(args)
+    )
+
+    reward_hist = train_q_val(
         models=(model, model_target),
         optim=optim,
-        num_actions=5,
+        num_actions=num_actions,
         env=env,
         episode_interaction=episode_interaction,
-        num_episodes=1500,
+        num_episodes=args.num_episodes,
+        batch_size=args.batch_size,
     )
 
-    smoothed_rewards = np.convolve(
-        episode_reward_history, np.ones(20) / 20, mode="valid"
-    )
+    smoothed_rewards = np.convolve(reward_hist, np.ones(20) / 20, mode="valid")
 
-    plt.plot(episode_reward_history, alpha=0.3)
+    plt.plot(reward_hist, alpha=0.3)
     plt.plot(
         range(len(smoothed_rewards)), smoothed_rewards, color="blue", linewidth=1.5
     )
     plt.xlabel("Episode")
     plt.ylabel("Reward")
     plt.title("Classical Q-Value Training", fontweight="bold")
-    plt.savefig("./results/dq_learning/classical_training.pdf")
+    plt.savefig(os.path.join(save_dir, "classical_training.pdf"))
 
-    model.save_weights("./results/dq_learning/classical_model.h5")
+    model.save_weights(os.path.join(save_dir, "classical_model.h5"))
+
+
+def main(args: argparse.Namespace) -> None:
+    print("\n========= Training Configuration =========")
+
+    for key, value in vars(args).items():
+        print(f"{key:>15}: {value}")
+
+    print("==========================================\n")
+
+    policy(args)
+    dql(args)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(usage="%(prog)s [options]")
+
+    parser.add_argument(
+        "--num_layers", type=int, default=3, help="Number of MLP layers"
+    )
+    parser.add_argument(
+        "--num_episodes", type=int, default=1500, help="Number of training episodes"
+    )
+    parser.add_argument("--batch_size", type=int, default=10, help="Batch Size")
+    parser.add_argument(
+        "--lr",
+        type=float,
+        default=1e-3,
+        help="Learning rate for model",
+    )
+
+    args = parser.parse_args()
+    main(args)

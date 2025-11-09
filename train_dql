@@ -9,39 +9,38 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-from qaisim import get_episode_gen
+from qaisim import get_episode_interaction
 from qaisim.qrl.module import Module
-from qaisim.qrl import PolicyGradient, ParametrizedQC
-
+from qaisim.qrl import DeepQLearning, ParametrizedQC
 
 plt.rcParams["font.family"] = "STIXGeneral"
 tf.random.set_seed(12)
 
 
-def train_policy(args: argparse.Namespace) -> Module:
+def train_q_val(args: argparse.Namespace) -> Module:
     num_qubits = 8 if args.backend == "pure" else 5
     num_layers = args.num_layers
     lrs = (0.03, 0.05, 0.03)
     num_actions = 5 if args.backend == "pure" else 2
     num_episodes = args.num_episodes
 
-    generate_episodes = get_episode_gen(
-        dataset_file="data/qtasks_train.csv",
-        **vars(args),
+    episode_interaction, env = get_episode_interaction(
+        dataset_file="data/qtasks_train.csv", **vars(args)
     )
 
     processor_id = None if args.backend == "pure" else "weber"
     paramatrized_qc = ParametrizedQC(num_qubits, num_layers, processor_id=processor_id)
-    policy_gradient_agent = PolicyGradient(paramatrized_qc, num_actions, lrs=lrs)
+    dql_agent = DeepQLearning(paramatrized_qc, num_actions, lrs=lrs)
 
-    policy_gradient_agent.train(
-        generate_episodes,
+    dql_agent.train(
+        env=env,
+        generate_episode=episode_interaction,
         num_episodes=num_episodes,
         batch_size=args.batch_size,
         threshold_reward=100,
     )
 
-    return policy_gradient_agent
+    return dql_agent
 
 
 def main(args: argparse.Namespace) -> None:
@@ -51,18 +50,17 @@ def main(args: argparse.Namespace) -> None:
         print(f"{key:>15}: {value}")
 
     print("==========================================\n")
-
-    save_dir = f"results/policy/{args.backend}"
+    save_dir = f"./results/dq_learning/{args.backend}"
     os.makedirs(save_dir, exist_ok=True)
 
-    policy_grad_agent = train_policy(args)
-    if policy_grad_agent.model is None:
-        raise RuntimeError("Policy Gradient Agent Model not defined")
+    dql_agent = train_q_val(args)
+    if dql_agent.model is None:
+        raise RuntimeError("Deep Q-Learning Agent Model not defined")
 
-    episode_rewards = policy_grad_agent.episode_reward_history
+    episode_rewards = dql_agent.episode_reward_history
     smoothed_rewards = np.convolve(episode_rewards, np.ones(20) / 20, mode="valid")
 
-    episode_length = policy_grad_agent.episode_length
+    episode_length = dql_agent.episode_length
     episode_length = np.convolve(episode_length, np.ones(20) / 20, mode="valid")
 
     plt.plot(episode_rewards, alpha=0.3)
@@ -71,20 +69,20 @@ def main(args: argparse.Namespace) -> None:
     )
     plt.xlabel("Episode")
     plt.ylabel("Reward")
-    plt.title("Policy Gradient Training", fontweight="bold")
+    plt.title("Deep Q-Learning Training", fontweight="bold")
     plt.grid()
-    plt.savefig(os.path.join(save_dir, "policy_training.pdf"))
+    plt.savefig(os.path.join(save_dir, "dql_training.pdf"))
 
     plt.clf()
 
     plt.plot(episode_length, color="blue")
     plt.xlabel("Episode")
     plt.ylabel("Length")
-    plt.title("Episode Length - Policy", fontweight="bold")
+    plt.title("Episode Length - DeepQLearning", fontweight="bold")
     plt.grid()
     plt.savefig(os.path.join(save_dir, "episode_length.pdf"))
 
-    policy_grad_agent.model.save_weights(os.path.join(save_dir, "model.h5"))
+    dql_agent.model.save_weights(os.path.join(save_dir, "model.h5"))
 
 
 if __name__ == "__main__":
