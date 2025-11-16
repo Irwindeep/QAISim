@@ -17,7 +17,7 @@ from tqdm.auto import tqdm
 plt.rcParams["font.family"] = "STIXGeneral"
 tf.random.set_seed(12)
 
-dataset_file = "data/qtasks_train.csv"
+dataset_file = "data/qtasks_test.csv"
 generate_episodes = get_episode_gen(dataset_file, backend="pure")
 episode_interaction, env = get_episode_interaction(dataset_file, backend="pure")
 
