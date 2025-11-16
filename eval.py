@@ -314,10 +314,10 @@ def evaluate_q_val() -> None:
 
 
 if __name__ == "__main__":
-    # print("\nEvaluating Policy based models\n")
-    # evaluate_policy()
-    #
-    # plt.clf()
+    print("\nEvaluating Policy based models\n")
+    evaluate_policy()
+
+    plt.clf()
 
     print("\nEvaluating Q-Value based models\n")
     evaluate_q_val()
