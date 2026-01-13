@@ -6,7 +6,7 @@ This repository provides the official implementation for the paper:
 
 > **QAISim: A Toolkit for Modeling and Simulation of AI in Quantum Cloud Computing Environments**\
 > Irwindeep Singh, Sukhpal Singh Gill, Jinzhao Sun, Jan Mol\
-> Accepted: _Cluster Computing (Springer), 2026_ | [Preprint (ArXiv)](https://arxiv.org/abs/2512.17918v1)
+> Published: _[Cluster Computing (Springer), 2026](https://link.springer.com/article/10.1007/s10586-025-05879-9)_ | [ArXiv](https://arxiv.org/abs/2512.17918v1)
 
 ### Overview
 
