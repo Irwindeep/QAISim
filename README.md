@@ -110,13 +110,14 @@ QAISim is a Python-based simulation toolkit designed for resource management in 
 If you find the code useful for your research, please cite our paper:
 
 ```bibtex
-@misc{singh2025qaisim,
-      title={{QAISim}: A Toolkit for Modeling and Simulation of {AI} in Quantum Cloud Computing Environments},
-      author={Irwindeep Singh and Sukhpal Singh Gill and Jinzhao Sun and Jan Mol},
-      year={2025},
-      eprint={2512.17918},
-      archivePrefix={arXiv},
-      primaryClass={cs.DC},
-      url={https://arxiv.org/abs/2512.17918},
+@article{singh2026qaisim,
+    title={{QAISim}: a toolkit for modeling and simulation of {AI} in quantum cloud computing environments},
+    author={Singh, Irwindeep and Gill, Sukhpal Singh and Sun, Jinzhao and Mol, Jan},
+    journal={Cluster Computing},
+    volume={29},
+    number={2},
+    pages={99},
+    year={2026},
+    publisher={Springer}
 }
 ```
